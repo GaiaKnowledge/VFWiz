@@ -100,12 +100,12 @@ def energy_seedling(Seedling_kit=None, energy_price=None):  # Should be split up
 
 def energy(input_data):
     my_energy_lights = energy_lights(System=input_data.iSystem, Lights=input_data.iLights, ienergy_price=input_data.ienergy_price)
-    my_energy_plumbing = energy_plumbing()
-    my_energy_climate = energy_climate()
-    my_energy_HVAC = energy_HVAC()
-    my_energy_seedling = energy_seedling()
-    my_energy_pricing = ienergy_price
-    size = iSize
+    my_energy_plumbing = energy_plumbing(System=input_data.iSystem, Plumbing_kit=input_data.iPlumbing, energy_price=input_data.ienergy_price)
+    my_energy_climate = energy_climate(Climate=input_data.iClimate, energy_price=input_data.ienergy_price)
+    my_energy_HVAC = energy_HVAC(energy_price = input_data.ienergy_price, HVAC = input_data.iHVAC)
+    my_energy_seedling = energy_seedling(Seedling_kit=input_data.iSeedling, energy_price=input_data.ienergy_price)
+    my_energy_pricing = input_data.ienergy_price
+    size = input_data.iSize
 
     if energy_lights != "unknown": 
         consumption = my_energy_lights + my_energy_plumbing + my_energy_climate + my_energy_HVAC + my_energy_seedling  
