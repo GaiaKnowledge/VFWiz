@@ -7,11 +7,13 @@ class inputContainer(object):
         self.iName = "UTC"
         self.iLocation = "Liverpool"
         self.iLocation_type = "Urban"  # Urban, Semi-urban or rural
-        self.iSize = 20  # square-metres
+        self.iFarm_type = "indoors" # Greenhouse or Indoors?
+        self.iSize = 240  # square-metres
         self.iStaff = 0  # not sure how many staff or hours
         self.iStart = "01/04/2019"
         self.iType = "Indoor"
-        self.iSystem = ['ZipTowers', 21]  # System type, quantity of racks
+        self.iCrop = ["Lettuce", "Basil"]
+        self.iSystem = ['ZipTowers', 21, 150]  # System type, quantity of racks, number of towers
         self.iLights = ["Example", "water", 210, 200, 18] # Type of Light, cooling type, Qty, Wattage, Hours per day
         self.iPlumbing =['Example', 1800, 45]  # Type of Plumbing kit, wattage, 1 system per X amount of rack units
         self.iClimate = np.array(
