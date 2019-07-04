@@ -118,3 +118,27 @@ plt.plot(ch_yield_array)
 plt.xlabel('Days')
 plt.ylabel('Cumulative Yield for Herbs (kg)')
 plt.show()
+
+
+"""" Income per Plant
+
+   Notes
+   -----
+   Plant income = Plant price x Plant index x Adjusted plant yield x plant share rate
+   Plant price index is the ratio that the price of products from a VF to the average retail price from the current 
+   market was set at 1 if not specified by user. The price share rate is the ratio that the revenue is shared between
+   the farm and other marketing process. Introduced to reflect potential cost savings of transporting produce to
+   market and from reduction in food supply chain that are significant cost savings but not directly included at this stage.
+   If not specified, the price share rate is set at 0.6 approx 3x as high as rural farms, assuming 60% is shared by farm.
+   """
+
+
+def income(Pp, Pi, Ya, Psr)
+    PI = Pp * Pi * Ya * Psr
+
+    # Plant income = Plant price x Plant index x Adjusted plant yield x plant share rate
+    # Plant price index is the ratio that the price of products from a VF to the average retail price from the current
+    # market was set at 1 if not specified by user. The price share rate is the ratio that the revenue is shared between
+    # the farm and other marketing process. Introducted to reflect potential cost savings of transporting produce to
+    # market and from reduction in food supply chain that are significant cost savings but not directly included at this stage.
+    # If not specified, the price share rate is set at 0.6 approx 3x as high as rural farms, assuming 60% is shared by farm.
