@@ -35,6 +35,13 @@ gyield_array = []
 cg_yield_array = [0]
 cg_yield = 0
 
+food = np.array(
+[['', 'Control System', 'CO2 Injector', 'Dehumidifier', 'Inline Fans'],
+                             ['Quantity', 0, 1, 1, 0],
+                             ['Watts', 100, 60, 1350, 198],
+                             ['Hours on per day', 24,16, 18, 24]]
+                            )
+
 def percentage_of_crop(no_towers, split, harvest_cycle):
     cp = split * no_towers
     towers_per_unit_time = cp/harvest_cycle
