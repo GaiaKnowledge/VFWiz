@@ -43,3 +43,4 @@ class inputContainer(object):
         self.ienergystandingcharge = 85  # £85 standing charge
         self.itax = 0  # Council tax
         self.iinternet = 0  # Cost of internet per month
+        self.plantindex = 4 # Plant price index is the ratio that the price of products from a VF to the average retail price from the current

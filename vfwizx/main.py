@@ -53,13 +53,28 @@ for i in range(days):
         sales += 50
     sales_array.append(sales)
 
-sales_array = np.asarray(sales_array)
-OpEx_array = np.asarray(OpEx_array)
+sales_array = np.asarray(sales_array) # Sales as an array
+OpEx_array = np.asarray(OpEx_array)  # OpEx as an array
 
 print("Operational Expenditure: £", OpEx)
 print("Sales: £", sales)
 
-profit_array = sales_array - OpEx_array
+
+def profit(sales_array, OpEx_array):
+    profit_array = sales_array - OpEx_array  # Profit = revenue from sales - running costs
+    return profit_array
+
+profit_array = profit(sales_array, OpEx_array)
+
+def COGS(consumables, utilitiesM, rent, labour):
+    COGS = consumables + utilitiesM + rent + labour
+    return
+
+def gross_profit_margin(sales_array, cogs):  # Profit and Cost of Goods Sold - i.e. cost of materials and director labour costs
+    gross_profit_margin = (sales_array - cogs)/sales_array # Total revenue - Cost of goods sold (COGS) / revenue
+    return gross_profit_margin
+
+# gross_profit_margin(sales_array, cogs)
 
 print("Profit £:",profit_array[-1])
 
@@ -68,14 +83,12 @@ plt.xlabel('Days')
 plt.ylabel('Gross Profit')
 plt.show()
 
-gross_profit_margin = profit_array / sales_array
-
-plt.figure()
-plt.plot(gross_profit_margin)
-plt.xlabel('Days')
-plt.ylabel('Gross Profit Margin')
-plt.show()
-
-print("Gross Profit Margin:",gross_profit_margin[-1])
+# plt.figure()
+# plt.plot(gross_profit_margin)
+# plt.xlabel('Days')
+# plt.ylabel('Gross Profit Margin')
+# plt.show()
+#
+# print("Gross Profit Margin:",gross_profit_margin[-1])
 
 # print("GOT costs ", costs)

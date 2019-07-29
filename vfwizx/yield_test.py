@@ -140,8 +140,11 @@ plt.show()
    """
 
 
-def income(Pp, Pi, Ya, Psr)
+def income(Pp, Pi, Ya, Psr):
     PI = Pp * Pi * Ya * Psr
+    return PI
+
+
 
     # Plant income = Plant price x Plant index x Adjusted plant yield x plant share rate
     # Plant price index is the ratio that the price of products from a VF to the average retail price from the current

@@ -24,12 +24,12 @@ def market(System=None, Crop = Lettuce):  # REQUIRES CHANGING FOR SCALABILITY
         crop2_towers = int(crop2_split) / 100 * System[3]
     else:
 
-    return
+     return
 
 
-   """" Adjusted Plant Yield Equation
+"""" Adjusted Plant Yield Equation
 
-   Notes
+Notes
    -----
        Adjusted Plant Yield = Standard Yield x Plant Area x PAR factor
        (ratio of actual PAR delivered to plant canopy compared to theoretical plant requirements. In artificial lighting
@@ -42,10 +42,10 @@ def market(System=None, Crop = Lettuce):  # REQUIRES CHANGING FOR SCALABILITY
 a, b = 0.05, 0.15
 Fr = truncnorm.rvs(a, b, size=1)
 
-def adjusted_yield(System=none, Crop=none):
+def adjusted_yield(System=iSystem, Crop=Lettuce):
     Ya = Ys * Ap * PARf * CO2f * (1-Fr) * Tf
 
-    if System ==
+   # if System ==
 
     """" Income per Plant
     
@@ -59,10 +59,10 @@ def adjusted_yield(System=none, Crop=none):
     If not specified, the price share rate is set at 0.6 approx 3x as high as rural farms, assuming 60% is shared by farm.
     """
 
-def income
-    PI = Pp * Pi * Ya * Psr
+def plant_income(pp, pi, ya, psr, ya, psr):  # Plant income = Plant price, plant index, adjusted yield, plant share rate
+    PI = pp * pi * ya * psr
 
-
+plant_income(Lettuce.plant_price, input_data.plantindex,
 
     # Plant income = Plant price x Plant index x Adjusted plant yield x plant share rate
     # Plant price index is the ratio that the price of products from a VF to the average retail price from the current

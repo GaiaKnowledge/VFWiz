@@ -33,35 +33,34 @@ class Crop(object):
         self.harvest_index = harvest_index  #  Index is the ratio of edible weight to the gross harvest weight
 
 
-        c, d = 0.05, 0.1
-        herbs_split = 0.5  # percentage of crops that are herbs
-        herbs_Ys = 2  # kg per ziptower harvest
-        herbs_harvest_cycle = 31.5
+c, d = 0.05, 0.1
+herbs_split = 0.5  # percentage of crops that are herbs
+herbs_Ys = 2  # kg per ziptower harvest
+herbs_harvest_cycle = 31.5
 
-        gyield_array = []
-        cg_yield_array = [0]
-        cg_yield = 0
+gyield_array = []
+cg_yield_array = [0]
+cg_yield = 0
 
-        # LEAFY GREENS
-        Lettuce = Crop("Lettuce", 3.6 * 7, 5 * 7, 0.453592 * 6.4,
-                       0)  # Harvest times from ZipGrow calculator, Harvest weight per Ziptower
-        Chard = Crop("Chard", 4.3 * 7, 6 * 7, 0.453592 * 8.8, 0)
-        Bok_Choy = Crop("Bok Choy", 4.3 * 7, 6 * 7, 0.453592 * 12.8, 0)
-        Pak_Choi = Crop("Pak Choi", 4.3 * 7, 6 * 7, 0.453592 * 6.4, 0)
-        Mustard_Greens = Crop("Mustard Greens", 4.3 * 7, 6 * 7, 0.453592 * 6.4, 0)
-        Kale = Crop("Kale", 4.3 * 7, 6 * 7, 0.453592 * 6.4, 0)
-        Collards = Crop("Collards", 4.3 * 7, 6 * 7, 0.453592 * 8, 0)
+# LEAFY GREENS
+Lettuce = Crop("Lettuce", 3.6 * 7, 5 * 7, 0.453592 * 6.4, 0)  # Harvest times from ZipGrow calculator, Harvest weight per Ziptower
+Chard = Crop("Chard", 4.3 * 7, 6 * 7, 0.453592 * 8.8, 0)
+Bok_Choy = Crop("Bok Choy", 4.3 * 7, 6 * 7, 0.453592 * 12.8, 0)
+Pak_Choi = Crop("Pak Choi", 4.3 * 7, 6 * 7, 0.453592 * 6.4, 0)
+Mustard_Greens = Crop("Mustard Greens", 4.3 * 7, 6 * 7, 0.453592 * 6.4, 0)
+Kale = Crop("Kale", 4.3 * 7, 6 * 7, 0.453592 * 6.4, 0)
+Collards = Crop("Collards", 4.3 * 7, 6 * 7, 0.453592 * 8, 0)
 
-        # HERBS
-        Basil = Crop("Basil", 3.6 * 7, 5 * 7, 0.0283495 * 102.4, 0)
-        Cilantro = Crop("Cilantro", 4.3 * 7, 6 * 7, 0.0283495 * 76.8, 0)
-        Oregano = Crop("Oregano", 7.2 * 7, 10 * 7, 0.0283495 * 64, 0)
-        Fennel = Crop("Fennel", 5.8 * 7, 8 * 7, 0.0283495 * 153.6, 0)
-        Mint = Crop("Mint", 4.3 * 7, 6 * 7, 0.0283495 * 76.8, 0)
-        Parsley = Crop("Parsley", 4.3 * 7, 6 * 7, 0.0283495 * 76.8, 0)
-        Chives = Crop("Chives", 5.8 * 7, 8 * 7, 0.0283495 * 102.4, 0)
-        Thyme = Crop("Thyme", 5.8 * 7, 8 * 7, 0.0283495 * 51.2, 0)
-        Lemongrass = Crop("Lemongrass", 4.3 * 7, 6 * 7, 0.0283495 * 64, 0)
-        Nasturtiums = Crop("Nasturtiums", 2.9 * 7, 4 * 7, 0.0283495 * 19.2, 0)
-        Tarragon = Crop("Tarragon", 7.2 * 7, 10 * 7, 0.0283495 * 38.4, 0)
-        Chervil = Crop("Chervil", 3.6 * 7, 5 * 7, 0.0283495 * 108.8, 0)
+# HERBS
+Basil = Crop("Basil", 3.6 * 7, 5 * 7, 0.0283495 * 102.4, 0)
+Cilantro = Crop("Cilantro", 4.3 * 7, 6 * 7, 0.0283495 * 76.8, 0)
+Oregano = Crop("Oregano", 7.2 * 7, 10 * 7, 0.0283495 * 64, 0)
+Fennel = Crop("Fennel", 5.8 * 7, 8 * 7, 0.0283495 * 153.6, 0)
+Mint = Crop("Mint", 4.3 * 7, 6 * 7, 0.0283495 * 76.8, 0)
+Parsley = Crop("Parsley", 4.3 * 7, 6 * 7, 0.0283495 * 76.8, 0)
+Chives = Crop("Chives", 5.8 * 7, 8 * 7, 0.0283495 * 102.4, 0)
+Thyme = Crop("Thyme", 5.8 * 7, 8 * 7, 0.0283495 * 51.2, 0)
+Lemongrass = Crop("Lemongrass", 4.3 * 7, 6 * 7, 0.0283495 * 64, 0)
+Nasturtiums = Crop("Nasturtiums", 2.9 * 7, 4 * 7, 0.0283495 * 19.2, 0)
+Tarragon = Crop("Tarragon", 7.2 * 7, 10 * 7, 0.0283495 * 38.4, 0)
+Chervil = Crop("Chervil", 3.6 * 7, 5 * 7, 0.0283495 * 108.8, 0)
