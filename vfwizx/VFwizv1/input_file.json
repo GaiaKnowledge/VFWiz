@@ -1,7 +1,10 @@
 {
    "light_type" : "intraspectra_spectrablade_8",
    "crop" : "lettuce",
-   "farm_area" : 250,
+   "grow_area" : 250,
+   "farm_volume" : 6555,
+   "building_type" : "basement",
+   "surface_area" : 406,
    "grow_system" : "ziprack_8",
    "energy_price" : 0.10,
    "average_outdoor_temperature": 24,
