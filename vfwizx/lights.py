@@ -37,7 +37,6 @@ class Lights(object):
               )
 # Intravision
 
-
 intravision_single_spectra_blade_8ft = Lights("Intravision Single Sided Spectra Blades", 2.4, "metres", "LED", 75, 100,
                                                 "UVA 365nm, Purple 410nm, Royal blue 445nm, Green 530nm, "
                                                 "Red 630 mn, Deep red 660nm, Fare red 730nm, Cool White,"

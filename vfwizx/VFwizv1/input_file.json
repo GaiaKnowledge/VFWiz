@@ -1,0 +1,10 @@
+{
+   "light_type" : "intraspectra_spectrablade_8",
+   "crop" : "lettuce",
+   "farm_area" : 250,
+   "grow_system" : "ziprack_8",
+   "energy_price" : 0.10,
+   "average_outdoor_temperature": 24,
+   "crop_price_per_kilo" : 15,
+   "minimum_wage"  : 8.21
+}
