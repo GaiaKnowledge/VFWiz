@@ -6,6 +6,7 @@
    "building_type" : "basement",
    "surface_area" : 406,
    "grow_system" : "ziprack_8",
+   "co2_enrichment" : "yes",
    "energy_price" : 0.10,
    "average_outdoor_temperature": 24,
    "crop_price_per_kilo" : 15,

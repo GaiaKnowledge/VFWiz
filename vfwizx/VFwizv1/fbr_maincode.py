@@ -2,7 +2,8 @@
 
 import json
 import math
-# class inputContainer(object):
+
+from . vf_input import inputContainer
 
 def get_input_scenario(input_file):
    with open(input_file) as f:
@@ -10,7 +11,7 @@ def get_input_scenario(input_file):
    input_scenario = inputContainer()
    input_scenario.iLights = inputs['light_type']
    input_scenario.iCrop = inputs['crop']
-   input_scenario.iArea = inputs['grow_area']
+   input_scenario.area = inputs['grow_area']
    input_scenario.iSurface = inputs['surface_area']
    input_scenario.iVolume = inputs['farm_volume']
    input_scenario.iBuilding = inputs['building_type']
@@ -21,24 +22,20 @@ def get_input_scenario(input_file):
    input_scenario.iCrop_price = inputs['crop_price_per_kilo']
    input_scenario.iWages = inputs['minimum_wage']
    return input_scenario
-input_file = 'input_file.json'
-input_scenario = get_input_scenario(input_file)
 
 # System
-
 def number_of_racks(grow_system, grow_area):
-
    if grow_system == 'ziprack_8':
       no_of_racks = math.floor(grow_area/4.62963)  # 54 Zipracks per 250 sq-m (including aisles, work bench and plumbing kit)
    else:
-      no_of_racks = 'unknown'
+      raise RuntimeError("Unknown grow_system: {}".format(grow_system))
    return no_of_racks
 
 # Harvest weight
 
 def crop(crop_type):
 
-   if crop_type = "lettuce":
+   if crop_type == "lettuce":
       harvest_weight = 0.5  # kg
    else:
       harvest_weight = "unknown"
@@ -83,22 +80,20 @@ def displayspec(light_type):
       light_efficiency = 'unknown'
     return light_wattage, light_efficiency
 
-def qty_lights(grow_system, no_of_racks):
-
+def get_qty_lights(grow_system, no_of_racks):
    if grow_system == 'ziprack_8':
-   no_of_lights == no_of_racks*24  # Assumption that 24 lighting units are require to cover crop area of 1 Ziprack (30 towers)
+      no_of_lights == no_of_racks*24  # Assumption that 24 lighting units are require to cover crop area of 1 Ziprack (30 towers)
    else:
-   no_of_lights == "unknown"
+      no_of_lights == "unknown"
    return no_of_lights
 
-def lights_energy(light_type, qty_lights):
-
+def get_lights_energy(light_type, qty_lights):
    lights_watts, efficiency = displayspec(light_type)
    lighting_kw_usage = lights_watts*qty_lights/1000
    kwh_per_day = lighting_kw_usage*12  # Assuming 12 hours of light for plants
    return kwh_per_day
 
-lights_daily_energy = lights_energy(light_type=input_scenario.iLights, qty_lights(input_scenario.iSystem, no_of_racks))
+
 
 # HVAC
 
@@ -106,7 +101,7 @@ def temp_crop_reqs(crop_type):
    if crop_type == 'lettuce':
       Tin = 23.9  # Temperature optimal for lettuce growth
    else:
-      Tin = 22  'general temperature'
+      Tin = 22  # 'general temperature'
    return Tin
 
 def HVAC_energy(surface_area, building_type, Tin, Tout):
@@ -131,8 +126,7 @@ def HVAC_energy(surface_area, building_type, Tin, Tout):
 
    return HVAC_kwh
 
-HVAC_daily_energy = HVAC_energy(surface_area=input_scenario.iSurface, building_type=input_scenario.iBuilding,
-                                 Tin=temp_crop_reqs(input_scenario.iCrop, Tout=input_scenario.Toutdoors))
+
 
 # Labour
 
@@ -141,13 +135,13 @@ def daily_energy_consumption(HVAC_daily_energy, lights_daily_energy):
    kwh_per_day = HVAC_daily_energy + lights_daily_energy
    return kwh_per_day
 
-farm_kwh_per_day = daily_energy_consumption(HVAC_daily_energy, lights_daily_energy)
+
+)
 
 def monthly_energy_consumption(farm_kwh_per_day):
    m_energy_consumption = farm_kwh_per_day * 28  # 4 weeks, 28 days a month
    return mec
 
-monthly_energy_consumption_farm = monthly_energy_consumption(farm_kwh_per_day)
 
 # Yield
 
@@ -164,34 +158,27 @@ Notes
        if indoor temperature is uncontrolled by HVAC or other systems, value can be set for 0.9 for preliminary estimation)
    Fr = Failure rate, by default set at 5%
    """
-no_of_racks = number_of_racks(input_scenario.iSystem, input_scenario.iArea)
 
-farm_plant_capacity, standard_yield = plant_capacity(input_scenario.iCrop, input_scenario.iSystem, no_of_racks)
 
-ys = standard_yield
 
-def PPFD(crop_type):
+def get_crop_ppfd_reqs(crop_type):
    if crop_type == 'lettuce':
       crop_ppfd_reqs = 295
    else:
       crop_ppfd_reqs = 'unknown'
    return crop_ppfd_reqs
 
-ppfd_crop = PPFD(input_scenario.iCrop)
-ppfd_lights = 295  # placeholder
-
-tf = 1
 
 # Annual yield
-def adjusted_yield(building_type, ys, crop_type, pa, light_type, co2_enrichment, tf, ppfd_crop, ppfd_lights, grow_area):
+def adjusted_yield(building_type, ys, crop_type, pa, light_type, co2_enrichment, tf, crop_ppfd_reqs, ppfd_lights, grow_area):
 
    #PAR factor
    if light_type == "intraspectra_spectrablade_8":
       PARf = 1
    else:
-      PARf = ppfd_lights/ppfd_crop  # ratio of PAR delivered to canopy to theoretical PAR reqs
+      PARf = ppfd_lights/crop_ppfd_reqs  # ratio of PAR delivered to canopy to theoretical PAR reqs
    # CO2 factor
-   if co2_enrichment == 'yes'
+   if co2_enrichment == 'yes':
       CO2f = 1
    else:
       CO2f = 'unknown'
@@ -218,22 +205,39 @@ def sales(ya, crop_price):
    return crop_sales
 
 
+
+input_file = 'input_file.json'
+scenario = get_input_scenario(input_file)
+
+no_of_racks = number_of_racks(scenario.iSystem, scenario.area)
+qty_lights = get_qty_lights(scenario.iSystem, no_of_racks)
+lights_daily_energy = get_lights_energy(scenario.iLights, qty_lights)
+
+HVAC_daily_energy = HVAC_energy(surface_area=scenario.iSurface, building_type=scenario.iBuilding,
+                                Tin=temp_crop_reqs(scenario.iCrop, Tout=scenario.Toutdoors))
+farm_kwh_per_day = daily_energy_consumption(HVAC_daily_energy, lights_daily_energy
+monthly_energy_consumption_farm = monthly_energy_consumption(farm_kwh_per_day)
+farm_plant_capacity, standard_yield = plant_capacity(scenario.iCrop, scenario.iSystem, no_of_racks)
+ys = standard_yield
+crop_ppfd_reqs = get_crop_ppfd_reqs(scenario.iCrop)
+ppfd_lights = 295  # placeholder
+
+tf = 1
+
 # OPEX
 
 OpEx: int = 0
 days = 366
+print("Days",days-1)
 OpEx_array = []
 
-def OpEx(days,labour daily_energy_consumption,
-days = 366
-print("Days",days-1)
-
-for i in range(days):
-    if i % 30 == 0:
+def OpEx(days,labour daily_energy_consumption):
+   for i in range(days):
+      if i % 30 == 0:
        # OpEx += labour()  # Fixed costs
        # OpEx += energy()
 
-    elif i % 365 == 0:
+      elif i % 365 == 0:
         OpEx += 2 # annualcosts(ienergystandingcharge, iwaterstandingcharge, iinsurance)  # Fixed costs
     OpEx_array.append(OpEx)
 
