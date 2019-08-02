@@ -15,6 +15,7 @@ def get_input_scenario(input_file):
    input_scenario.iVolume = inputs['farm_volume']
    input_scenario.iBuilding = inputs['building_type']
    input_scenario.iSystem = inputs['grow_system']
+   input_scenario.iCO2 = inputs['co2_enrichment']
    input_scenario.iEnergy = inputs['energy_price']
    input_scenario.Toutdoors = inputs['average_outdoor_temperature']
    input_scenario.iCrop_price = inputs['crop_price_per_kilo']
@@ -42,6 +43,14 @@ def crop(crop_type):
    else:
       harvest_weight = "unknown"
    return harvest_weight
+
+def gross_yield(crop_type):
+   if crop_type == 'lettuce':
+      ys = 78.5  # kg / m2 / year
+   else:
+      ys = 'unknown'
+   return ys
+
 
 # Plant Capacity
 
@@ -127,8 +136,6 @@ HVAC_daily_energy = HVAC_energy(surface_area=input_scenario.iSurface, building_t
 
 # Labour
 
-# OPEX
-
 # Energy
 def daily_energy_consumption(HVAC_daily_energy, lights_daily_energy):
    kwh_per_day = HVAC_daily_energy + lights_daily_energy
@@ -157,9 +164,134 @@ Notes
        if indoor temperature is uncontrolled by HVAC or other systems, value can be set for 0.9 for preliminary estimation)
    Fr = Failure rate, by default set at 5%
    """
+no_of_racks = number_of_racks(input_scenario.iSystem, input_scenario.iArea)
+
+farm_plant_capacity, standard_yield = plant_capacity(input_scenario.iCrop, input_scenario.iSystem, no_of_racks)
+
+ys = standard_yield
+
+def PPFD(crop_type):
+   if crop_type == 'lettuce':
+      crop_ppfd_reqs = 295
+   else:
+      crop_ppfd_reqs = 'unknown'
+   return crop_ppfd_reqs
+
+ppfd_crop = PPFD(input_scenario.iCrop)
+ppfd_lights = 295  # placeholder
+
+tf = 1
+
+# Annual yield
+def adjusted_yield(building_type, ys, crop_type, pa, light_type, co2_enrichment, tf, ppfd_crop, ppfd_lights, grow_area):
+
+   #PAR factor
+   if light_type == "intraspectra_spectrablade_8":
+      PARf = 1
+   else:
+      PARf = ppfd_lights/ppfd_crop  # ratio of PAR delivered to canopy to theoretical PAR reqs
+   # CO2 factor
+   if co2_enrichment == 'yes'
+      CO2f = 1
+   else:
+      CO2f = 'unknown'
+
+   # standard yield
+   if isinstance(ys, int):
+      ys = ys
+   else:
+      ys = gross_yield(crop_type)
+      pa = grow_area
+
+   #Temperature
+
+   #Failure rate
+   fr = 0.05
+
+   ya = ys*pa*PARf*CO2f*tf*(1-fr)
+   return ya
 
 # Sales
 
+def sales(ya, crop_price):
+   crop_sales = ya*crop_price
+   return crop_sales
+
+
+# OPEX
+
+OpEx: int = 0
+days = 366
+OpEx_array = []
+
+def OpEx(days,labour daily_energy_consumption,
+days = 366
+print("Days",days-1)
+
+for i in range(days):
+    if i % 30 == 0:
+       # OpEx += labour()  # Fixed costs
+       # OpEx += energy()
+
+    elif i % 365 == 0:
+        OpEx += 2 # annualcosts(ienergystandingcharge, iwaterstandingcharge, iinsurance)  # Fixed costs
+    OpEx_array.append(OpEx)
+
+# Operations = Bill Growth Lights + Bill Environmental Control + Bill Misc Energy + Water Bill + Seed Cost
+# + Nutrient Cost + Personnel Cost + Maintenance Cost + CO2 Cost - Reduction from Renewable Energy
+# Inputs = Seeds + Nutrients + Grow Media
+
 # REVENUE
 
+sales: int = 0
+sales_array = []
+
+for i in range(days):
+    if i % 30 == 0:
+        sales += sales(ya, crop_price)) # revenue(input_data.iSystem)
+        #Revenue += rent(iAnnual_rent, iSize, iLocation, iLocation_type)
+        #Revenue += utilitiesM(energy(), water(), internet)
+        #Revenue += consumables(nutrients, seeds, grow_media)
+        #Revenue +=
+    elif i % 365 == 0:
+        sales += 50
+    sales_array.append(sales)
+
+# ARRAY conversion
+sales_array = np.asarray(sales_array) # Sales as an array
+OpEx_array = np.asarray(OpEx_array)  # OpEx as an array
+
+
 # PROFIT
+def profit(sales_array, OpEx_array):
+   profit_array = sales_array - OpEx_array  # Profit = revenue from sales - running costs
+   return profit_array
+
+
+profit_array = profit(sales_array, OpEx_array)
+
+
+def gross_profit_margin(sales_array,
+                        cogs):  # Profit and Cost of Goods Sold - i.e. cost of materials and director labour costs
+   gross_profit_margin = (sales_array - cogs) / sales_array  # Total revenue - Cost of goods sold (COGS) / revenue
+   return gross_profit_margin
+
+
+# gross_profit_margin(sales_array, cogs)
+
+print("Profit £:", profit_array[-1])
+
+plt.plot(profit_array)
+plt.xlabel('Days')
+plt.ylabel('Gross Profit')
+plt.show()
+
+# plt.figure()
+# plt.plot(gross_profit_margin)
+# plt.xlabel('Days')
+# plt.ylabel('Gross Profit Margin')
+# plt.show()
+#
+# print("Gross Profit Margin:",gross_profit_margin[-1])
+
+# print("GOT costs ", costs)
