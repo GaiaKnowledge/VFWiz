@@ -1,5 +1,5 @@
 {
-   "light_type" : "intraspectra_spectrablade_8",
+   "lights" : "intraspectra_spectrablade_8",
    "crop" : "lettuce",
    "grow_area" : 250,
    "farm_volume" : 6555,
