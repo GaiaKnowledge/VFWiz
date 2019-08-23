@@ -15,3 +15,6 @@ HEAT_CAPACITY_OF_AIR =  1003
 # Need canonical reference: https://en.wikipedia.org/wiki/Latent_heat
 # J Kg-1
 LATENT_HEAT_WATER = 2264705
+
+# Personal communication from Luuk Gaamans
+PSYCHOMETRIC_CONSTANT = 65.0
