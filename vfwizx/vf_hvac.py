@@ -28,15 +28,6 @@ import math
 from constants import DENSITY_OF_AIR, HEAT_CAPACITY_OF_AIR, LATENT_HEAT_WATER, PSYCHOMETRIC_CONSTANT
 
 
-# Calculation-specific constants
-LAI = 3 # their value 3.1.3
-CULTIVATION_AREA_COVERAGE = 0.9 # their value 3.1.1
-REFLECTION_COEFFICIENT = 0.05 # Luuk Gaamans personal communication
-
-VAPOUR_RESISTANCE = 200 # air circulation off
-VAPOUR_RESISTANCE = 100 # air circulation on
-
-
 def calc_vapour_pressure_air(temp_air, relative_humidty):
     """
     jmht added - seems to get different results from below
@@ -76,13 +67,18 @@ def calc_vapour_pressure_surface(temp_air, temp_surface, vapour_pressure_air):
            epsilon * (temp_surface - temp_air)
 
 
-def calc_net_radiation(ppfd):
+def calc_net_radiation(ppfd, reflection_coefficient=0.05, cultivation_area_coverage=0.9):
     """
     8. Submodel for net radiation
     Rnet = (1 - ρr) * Ilighting * CAC
     ρr: reflection coefficient
     Ilighting: radiation
     CAC: cultivation area cover
+    
+    NOTES
+    -----
+    cultivation_area_coverage = 0.9 # value from section 3.1.1 of paper
+    reflection_coefficient = 0.05 # Luuk Gaamans personal communication
     """
     # Guess from paper
     if ppfd == 600:
@@ -91,10 +87,10 @@ def calc_net_radiation(ppfd):
         lighting_radiation = 28
     else:
         assert False
-    return (1 - REFLECTION_COEFFICIENT) * lighting_radiation * CULTIVATION_AREA_COVERAGE
+    return (1 - reflection_coefficient) * lighting_radiation * cultivation_area_coverage
 
 
-def calc_latent_heat_flux(temp_air, temp_surface, relative_humidity, ppfd):
+def calc_latent_heat_flux(temp_air, temp_surface, relative_humidity, ppfd, lai, vapour_resistance):
     """
     9. Submodel for stomatal resistance
     rs = 60 * (1500 + PPFD) / (220  + PPFD)
@@ -110,12 +106,15 @@ def calc_latent_heat_flux(temp_air, temp_surface, relative_humidity, ppfd):
     """
     vapour_pressure_air = calc_vapour_pressure_air(temp_air, relative_humidity)
     vapour_pressure_surface = calc_vapour_pressure_surface(temp_air, temp_surface, vapour_pressure_air)
-    stomatal_resistance = 60 * (1500 + ppfd) / (220 + ppfd)
-    
-    return LAI * LATENT_HEAT_WATER * ( (vapour_pressure_surface - vapour_pressure_air) / (stomatal_resistance + VAPOUR_RESISTANCE) )
+    stomatal_resistance = calc_stomatal_resistance(ppfd)
+    return lai * LATENT_HEAT_WATER * ( (vapour_pressure_surface - vapour_pressure_air) / (stomatal_resistance + vapour_resistance) )
 
 
-def calc_sensible_heat_exchange(temp_air, temp_surface):
+def calc_stomatal_resistance(ppfd):
+    return 60 * (1500 + ppfd) / (220 + ppfd)
+
+
+def calc_sensible_heat_exchange(temp_air, temp_surface, lai, vapour_resistance):
     """
     5. Sensible heat exchange H
     H = LAI * ρa * cp * (Ts - Ta / ra)
@@ -126,18 +125,25 @@ def calc_sensible_heat_exchange(temp_air, temp_surface):
     Ta: temperature of surrounding air
     ra: aerodynamic resistance to heat
     """
-    return LAI * DENSITY_OF_AIR * HEAT_CAPACITY_OF_AIR * ((temp_surface - temp_air) / VAPOUR_RESISTANCE)
+    return lai * DENSITY_OF_AIR * HEAT_CAPACITY_OF_AIR * ((temp_surface - temp_air) / vapour_resistance)
 
 
 # variables
 temp_air = 21 # degrees celsius
 ppfd = 600 #  umol m-2
 relative_humidity = 73
+
+# Calculation-specific constants
+lai = 3 # from section 3.1.3 of paper
+vapour_resistance = 200 # air circulation off
+vapour_resistance = 100 # air circulation on
+
+
 net_radiation = calc_net_radiation(ppfd)
 
 def calc_residual(temp_surface, net_radiation):
-    sensible_heat_exchange = calc_sensible_heat_exchange(temp_air, temp_surface)
-    latent_heat_flux = calc_latent_heat_flux(temp_air, temp_surface, relative_humidity, ppfd)
+    sensible_heat_exchange = calc_sensible_heat_exchange(temp_air, temp_surface, lai, vapour_resistance)
+    latent_heat_flux = calc_latent_heat_flux(temp_air, temp_surface, relative_humidity, ppfd, lai, vapour_resistance)
     return net_radiation - sensible_heat_exchange - latent_heat_flux
 
 from scipy.optimize import root_scalar
@@ -150,17 +156,16 @@ result = root_scalar(calc_residual, bracket=[xa, xb], args=args)
 
 assert result.converged
 temp_surface = result.root
-print("GOT SURFACE TEMPERATURE ",temp_surface)
 
 
-sensible_heat_exchange = calc_sensible_heat_exchange(temp_air, temp_surface)
-latent_heat_flux = calc_latent_heat_flux(temp_air, temp_surface, relative_humidity, ppfd)
+sensible_heat_exchange = calc_sensible_heat_exchange(temp_air, temp_surface, lai, vapour_resistance)
+latent_heat_flux = calc_latent_heat_flux(temp_air, temp_surface, relative_humidity, ppfd, lai, vapour_resistance)
  
+print("SURFACE TEMPERATURE ",temp_surface)
 print("NET RADIATION: ",net_radiation)
 print("SENSIBLE HEAT EXCHANGE ", sensible_heat_exchange)
 print("LATENT HEAT FLUX ", latent_heat_flux)
-stomatal_resistance = 60 * (1500 + ppfd) / (220 + ppfd)
-print("STOMATAL RESISTANCE", stomatal_resistance)
+print("STOMATAL RESISTANCE", calc_stomatal_resistance(ppfd))
 
 
 
