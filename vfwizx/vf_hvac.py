@@ -54,14 +54,18 @@ def calc_vapour_pressure_air(temp_air, relative_humidty):
     return saturated_vapour_pressure * relative_humidty / 100
 
 
-def calc_vapour_pressure_surface(temp_air, temp_surface, vapour_pressure_air, relative_humidity):
+def calc_vapour_pressure_surface(temp_air, temp_surface, vapour_pressure_air):
     """
     7. Relation of χs to χa
     χs = χa + (ρa * cp) / λ * ε * (Ts - Ta)
+    λ: latent heat of the evaporation of water
+    ρa: Density of air
+    cp: Heat capacity of air - CHECK IS  ρacp in table
+    χs: vapour concentration at the transpiring surface
+    χa:  vapour concentration in surrounding air
     ε: vapour concentration (slope of the saturation function curve)
     
-    
-     epsilon relates the vapour_pressure to concentration. Explanation from Luuk:
+    epsilon relates the vapour_pressure to concentration. Explanation from Luuk:
         The simplest way to calculate it is epsilon = delta / gamma
         Where delta = 0.04145*exp(0.06088*T_s) (kPa/C)
         Gamma = 66.5  (Pascal/K) (gamma is a psychometric constant)
@@ -105,7 +109,7 @@ def calc_latent_heat_flux(temp_air, temp_surface, relative_humidity, ppfd):
     ra: aerodynamic resistance to vapour transfer
     """
     vapour_pressure_air = calc_vapour_pressure_air(temp_air, relative_humidity)
-    vapour_pressure_surface = calc_vapour_pressure_surface(temp_air, temp_surface, vapour_pressure_air, relative_humidity)
+    vapour_pressure_surface = calc_vapour_pressure_surface(temp_air, temp_surface, vapour_pressure_air)
     stomatal_resistance = 60 * (1500 + ppfd) / (220 + ppfd)
     
     return LAI * LATENT_HEAT_WATER * ( (vapour_pressure_surface - vapour_pressure_air) / (stomatal_resistance + VAPOUR_RESISTANCE) )
@@ -146,6 +150,7 @@ result = root_scalar(calc_residual, bracket=[xa, xb], args=args)
 
 assert result.converged
 temp_surface = result.root
+print("GOT SURFACE TEMPERATURE ",temp_surface)
 
 
 sensible_heat_exchange = calc_sensible_heat_exchange(temp_air, temp_surface)
