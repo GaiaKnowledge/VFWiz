@@ -127,37 +127,44 @@ def calc_sensible_heat_exchange(temp_air, temp_surface, lai, vapour_resistance):
     """
     return lai * DENSITY_OF_AIR * HEAT_CAPACITY_OF_AIR * ((temp_surface - temp_air) / vapour_resistance)
 
+def calc_temp_surface(temp_air, ppfd, relative_humidity, lai=3, vapour_resistance=100):
+    """
+    
+    # Calculation-specific constants
+    lai = 3 # from section 3.1.3 of paper
+    vapour_resistance = 200 # air circulation off
+    vapour_resistance = 100 # air circulation on
+    """
+    from scipy.optimize import root_scalar
+
+    def calc_residual(temp_surface, net_radiation):
+        sensible_heat_exchange = calc_sensible_heat_exchange(temp_air, temp_surface, lai, vapour_resistance)
+        latent_heat_flux = calc_latent_heat_flux(temp_air, temp_surface, relative_humidity, ppfd, lai, vapour_resistance)
+        return net_radiation - sensible_heat_exchange - latent_heat_flux
+    
+    net_radiation = calc_net_radiation(ppfd)
+    
+    limit = 5.0
+    xa = temp_air - limit
+    xb = temp_air + limit
+    args = (net_radiation,)
+    result = root_scalar(calc_residual, bracket=[xa, xb], args=args)
+    
+    assert result.converged
+    temp_surface = result.root
+    return temp_surface
+
 
 # variables
 temp_air = 21 # degrees celsius
 ppfd = 600 #  umol m-2
 relative_humidity = 73
+lai=3
+vapour_resistance=100
 
-# Calculation-specific constants
-lai = 3 # from section 3.1.3 of paper
-vapour_resistance = 200 # air circulation off
-vapour_resistance = 100 # air circulation on
-
+temp_surface = calc_temp_surface(temp_air, ppfd, relative_humidity, lai=lai, vapour_resistance=vapour_resistance)
 
 net_radiation = calc_net_radiation(ppfd)
-
-def calc_residual(temp_surface, net_radiation):
-    sensible_heat_exchange = calc_sensible_heat_exchange(temp_air, temp_surface, lai, vapour_resistance)
-    latent_heat_flux = calc_latent_heat_flux(temp_air, temp_surface, relative_humidity, ppfd, lai, vapour_resistance)
-    return net_radiation - sensible_heat_exchange - latent_heat_flux
-
-from scipy.optimize import root_scalar
-
-limit = 5.0
-xa = temp_air - limit
-xb = temp_air + limit
-args = (net_radiation,)
-result = root_scalar(calc_residual, bracket=[xa, xb], args=args)
-
-assert result.converged
-temp_surface = result.root
-
-
 sensible_heat_exchange = calc_sensible_heat_exchange(temp_air, temp_surface, lai, vapour_resistance)
 latent_heat_flux = calc_latent_heat_flux(temp_air, temp_surface, relative_humidity, ppfd, lai, vapour_resistance)
  
