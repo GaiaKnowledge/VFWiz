@@ -67,6 +67,19 @@ def calc_vapour_pressure_surface(temp_air, temp_surface, vapour_pressure_air):
            epsilon * (temp_surface - temp_air)
 
 
+def calc_lighting_radiation(ppfd):
+    """Values taken from paper
+    """
+    # Guess from paper
+    if ppfd == 600:
+        lighting_radiation = 120
+    elif ppfd == 140:
+        lighting_radiation = 28
+    else:
+        assert False
+    return lighting_radiation
+
+
 def calc_net_radiation(ppfd, reflection_coefficient=0.05, cultivation_area_coverage=0.9):
     """
     8. Submodel for net radiation
@@ -80,13 +93,7 @@ def calc_net_radiation(ppfd, reflection_coefficient=0.05, cultivation_area_cover
     cultivation_area_coverage = 0.9 # value from section 3.1.1 of paper
     reflection_coefficient = 0.05 # Luuk Gaamans personal communication
     """
-    # Guess from paper
-    if ppfd == 600:
-        lighting_radiation = 120
-    elif ppfd == 140:
-        lighting_radiation = 28
-    else:
-        assert False
+    lighting_radiation = calc_lighting_radiation(ppfd)
     return (1 - reflection_coefficient) * lighting_radiation * cultivation_area_coverage
 
 
