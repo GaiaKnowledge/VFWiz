@@ -24,8 +24,25 @@ https://appgeodb.nancy.inra.fr/biljou/pdf/Allen_FAO1998.pdf
 http://www.fao.org/3/X0490E/x0490e0k.htm
 
 """
+
 import math
-from constants import DENSITY_OF_AIR, HEAT_CAPACITY_OF_AIR, LATENT_HEAT_WATER, PSYCHOMETRIC_CONSTANT
+
+from scipy.optimize import root_scalar
+
+
+# Source: https://en.wikipedia.org/wiki/Density_of_air - take at 20C 
+# kg/m-3
+DENSITY_OF_AIR = 1.2041
+# https://www.ohio.edu/mechanical/thermo/property_tables/air/air_cp_cv.html at 300K/26.85C
+# J kg-1 C-1
+HEAT_CAPACITY_OF_AIR =  1003
+
+# Need canonical reference: https://en.wikipedia.org/wiki/Latent_heat
+# J Kg-1
+LATENT_HEAT_WATER = 2264705
+
+# Personal communication from Luuk Gaamans
+PSYCHOMETRIC_CONSTANT = 65.0
 
 
 def calc_vapour_pressure_air(temp_air, relative_humidty):
@@ -33,16 +50,31 @@ def calc_vapour_pressure_air(temp_air, relative_humidty):
     jmht added - seems to get different results from below
     From: http://www.fao.org/3/X0490E/x0490e0k.htm
     saturated_vapour_pressure = 0.6108 * math.exp((17.27 * temp_air) / (temp_air + 237.3))
-    vapour_pressure = saturated_vapour_pressure * relative_humidty / 100
     Luuk Gaamans personal communication:
         Vapour concentration in the air = Relative humidity * saturated vapour concentration at air temperature (g m-3)
         Additional information:
         https://www.engineeringtoolbox.com/water-vapor-saturation-pressure-air-d_689.html
         https://www.engineeringtoolbox.com/relative-humidity-air-d_687.html
     """
-    temp_air_k = temp_air + 273
-    saturated_vapour_pressure = math.exp(77.345 + (0.0057 * temp_air_k) - (7235 / temp_air_k) ) / temp_air_k**8.2
+    saturated_vapour_pressure = calc_saturated_vapour_pressure_air(temp_air)
     return saturated_vapour_pressure * relative_humidty / 100
+
+
+def calc_saturated_vapour_pressure_air(temp_air):
+    """
+    From: https://www.engineeringtoolbox.com/water-vapor-saturation-pressure-air-d_689.html
+    """
+    temp_air_k = temp_air + 273
+    return math.exp(77.345 + (0.0057 * temp_air_k) - (7235 / temp_air_k) ) / temp_air_k**8.2
+
+def calc_saturated_vapour_pressure_air_FAO(temp_air):
+    """
+    From: http://www.fao.org/3/X0490E/x0490e0k.htm
+    Results are in kPa so multiply by 1000
+    slightly different results from above
+    
+    """
+    return 0.611 * math.exp((17.27 * temp_air) / (temp_air + 237.3)) * 1000
 
 
 def calc_vapour_pressure_surface(temp_air, temp_surface, vapour_pressure_air):
@@ -56,15 +88,29 @@ def calc_vapour_pressure_surface(temp_air, temp_surface, vapour_pressure_air):
     χa:  vapour concentration in surrounding air
     ε: vapour concentration (slope of the saturation function curve)
     
+
+    """
+    epsilon = calc_epsilon(temp_air)
+    return vapour_pressure_air + ((DENSITY_OF_AIR * HEAT_CAPACITY_OF_AIR) / LATENT_HEAT_WATER) * \
+           epsilon * (temp_surface - temp_air)
+
+
+def calc_epsilon(temp_air):
+    """
     epsilon relates the vapour_pressure to concentration. Explanation from Luuk:
         The simplest way to calculate it is epsilon = delta / gamma
         Where delta = 0.04145*exp(0.06088*T_s) (kPa/C)
         Gamma = 66.5  (Pascal/K) (gamma is a psychometric constant)
     """
-    delta = 0.04145 * math.exp(0.06088 * temp_surface)
-    epsilon = delta / PSYCHOMETRIC_CONSTANT
-    return vapour_pressure_air + ((DENSITY_OF_AIR * HEAT_CAPACITY_OF_AIR) / LATENT_HEAT_WATER) * \
-           epsilon * (temp_surface - temp_air)
+    delta = 0.04145 * math.exp(0.06088 * temp_air)
+    return delta / PSYCHOMETRIC_CONSTANT   
+
+def calc_epsilon_FAO(temp_air):
+    """    
+    From: http://www.fao.org/3/X0490E/x0490e0k.htm
+    Disagrees by order of magnitude with above - even with factor of 1000
+    """
+    return ((2504 * math.exp((17.27 * temp_air) / (temp_air + 237.2))) / math.pow((temp_air + 237.2), 2)) / 1000
 
 
 def calc_lighting_radiation(ppfd):
@@ -142,7 +188,6 @@ def calc_temp_surface(temp_air, ppfd, relative_humidity, lai=3, vapour_resistanc
     vapour_resistance = 200 # air circulation off
     vapour_resistance = 100 # air circulation on
     """
-    from scipy.optimize import root_scalar
 
     def calc_residual(temp_surface, net_radiation):
         sensible_heat_exchange = calc_sensible_heat_exchange(temp_air, temp_surface, lai, vapour_resistance)
@@ -161,25 +206,25 @@ def calc_temp_surface(temp_air, ppfd, relative_humidity, lai=3, vapour_resistanc
     temp_surface = result.root
     return temp_surface
 
-
-# variables
-temp_air = 21 # degrees celsius
-ppfd = 600 #  umol m-2
-relative_humidity = 73
-lai=3
-vapour_resistance=100
-
-temp_surface = calc_temp_surface(temp_air, ppfd, relative_humidity, lai=lai, vapour_resistance=vapour_resistance)
-
-net_radiation = calc_net_radiation(ppfd)
-sensible_heat_exchange = calc_sensible_heat_exchange(temp_air, temp_surface, lai, vapour_resistance)
-latent_heat_flux = calc_latent_heat_flux(temp_air, temp_surface, relative_humidity, ppfd, lai, vapour_resistance)
- 
-print("SURFACE TEMPERATURE ",temp_surface)
-print("NET RADIATION: ",net_radiation)
-print("SENSIBLE HEAT EXCHANGE ", sensible_heat_exchange)
-print("LATENT HEAT FLUX ", latent_heat_flux)
-print("STOMATAL RESISTANCE", calc_stomatal_resistance(ppfd))
+if __name__ == '__main__':
+    # variables
+    temp_air = 21 # degrees celsius
+    ppfd = 600 #  umol m-2
+    relative_humidity = 73
+    lai = 3
+    vapour_resistance = 100
+    
+    temp_surface = calc_temp_surface(temp_air, ppfd, relative_humidity, lai=lai, vapour_resistance=vapour_resistance)
+    
+    net_radiation = calc_net_radiation(ppfd)
+    sensible_heat_exchange = calc_sensible_heat_exchange(temp_air, temp_surface, lai, vapour_resistance)
+    latent_heat_flux = calc_latent_heat_flux(temp_air, temp_surface, relative_humidity, ppfd, lai, vapour_resistance)
+     
+    print("SURFACE TEMPERATURE ",temp_surface)
+    print("NET RADIATION: ",net_radiation)
+    print("SENSIBLE HEAT EXCHANGE ", sensible_heat_exchange)
+    print("LATENT HEAT FLUX ", latent_heat_flux)
+    print("STOMATAL RESISTANCE", calc_stomatal_resistance(ppfd))
 
 
 
