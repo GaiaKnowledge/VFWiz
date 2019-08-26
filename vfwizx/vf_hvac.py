@@ -23,162 +23,32 @@ saturation_vapor_density = 618 g/m-3 at 20C
 https://appgeodb.nancy.inra.fr/biljou/pdf/Allen_FAO1998.pdf
 http://www.fao.org/3/X0490E/x0490e0k.htm
 
+
+
+PV = nRT => n/V = P/RT
+
 """
 
 import math
 
 from scipy.optimize import root_scalar
 
-
 # Source: https://en.wikipedia.org/wiki/Density_of_air - take at 20C 
-# kg/m-3
-DENSITY_OF_AIR = 1.2041
+DENSITY_OF_AIR = 1.2041 # kg m-3
+
 # https://www.ohio.edu/mechanical/thermo/property_tables/air/air_cp_cv.html at 300K/26.85C
-# J kg-1 C-1
-HEAT_CAPACITY_OF_AIR =  1003
+HEAT_CAPACITY_OF_AIR =  1003 # J kg-1 C-1
 
 # Need canonical reference: https://en.wikipedia.org/wiki/Latent_heat
-# J Kg-1
-LATENT_HEAT_WATER = 2264705
+LATENT_HEAT_WATER = 2264705 # J Kg-1
 
-# Personal communication from Luuk Gaamans
-PSYCHOMETRIC_CONSTANT = 65.0
+# Valye from paper
+PSYCHOMETRIC_CONSTANT = 65.0 # Pa/K
 
+IDEAL_GAS_CONSTANT = 8.3145 # J mol-1 K-1
 
-def calc_vapour_pressure_air(temp_air, relative_humidty):
-    """
-    jmht added - seems to get different results from below
-    From: http://www.fao.org/3/X0490E/x0490e0k.htm
-    saturated_vapour_pressure = 0.6108 * math.exp((17.27 * temp_air) / (temp_air + 237.3))
-    Luuk Gaamans personal communication:
-        Vapour concentration in the air = Relative humidity * saturated vapour concentration at air temperature (g m-3)
-        Additional information:
-        https://www.engineeringtoolbox.com/water-vapor-saturation-pressure-air-d_689.html
-        https://www.engineeringtoolbox.com/relative-humidity-air-d_687.html
-    """
-    saturated_vapour_pressure = calc_saturated_vapour_pressure_air(temp_air)
-    return saturated_vapour_pressure * relative_humidty / 100
+MOLAR_MASS_H2O = 18.01528 # g mol-1
 
-
-def calc_saturated_vapour_pressure_air(temp_air):
-    """
-    From: https://www.engineeringtoolbox.com/water-vapor-saturation-pressure-air-d_689.html
-    """
-    temp_air_k = temp_air + 273
-    return math.exp(77.345 + (0.0057 * temp_air_k) - (7235 / temp_air_k) ) / temp_air_k**8.2
-
-def calc_saturated_vapour_pressure_air_FAO(temp_air):
-    """
-    From: http://www.fao.org/3/X0490E/x0490e0k.htm
-    Results are in kPa so multiply by 1000
-    slightly different results from above
-    
-    """
-    return 0.611 * math.exp((17.27 * temp_air) / (temp_air + 237.3)) * 1000
-
-
-def calc_vapour_pressure_surface(temp_air, temp_surface, vapour_pressure_air):
-    """
-    7. Relation of χs to χa
-    χs = χa + (ρa * cp) / λ * ε * (Ts - Ta)
-    λ: latent heat of the evaporation of water
-    ρa: Density of air
-    cp: Heat capacity of air - CHECK IS  ρacp in table
-    χs: vapour concentration at the transpiring surface
-    χa:  vapour concentration in surrounding air
-    ε: vapour concentration (slope of the saturation function curve)
-    
-
-    """
-    epsilon = calc_epsilon(temp_air)
-    return vapour_pressure_air + ((DENSITY_OF_AIR * HEAT_CAPACITY_OF_AIR) / LATENT_HEAT_WATER) * \
-           epsilon * (temp_surface - temp_air)
-
-
-def calc_epsilon(temp_air):
-    """
-    epsilon relates the vapour_pressure to concentration. Explanation from Luuk:
-        The simplest way to calculate it is epsilon = delta / gamma
-        Where delta = 0.04145*exp(0.06088*T_s) (kPa/C)
-        Gamma = 66.5  (Pascal/K) (gamma is a psychometric constant)
-    """
-    delta = 0.04145 * math.exp(0.06088 * temp_air)
-    return delta / PSYCHOMETRIC_CONSTANT   
-
-def calc_epsilon_FAO(temp_air):
-    """    
-    From: http://www.fao.org/3/X0490E/x0490e0k.htm
-    Disagrees by order of magnitude with above - even with factor of 1000
-    """
-    return ((2504 * math.exp((17.27 * temp_air) / (temp_air + 237.2))) / math.pow((temp_air + 237.2), 2)) / 1000
-
-
-def calc_lighting_radiation(ppfd):
-    """Values taken from paper
-    """
-    # Guess from paper
-    if ppfd == 600:
-        lighting_radiation = 120
-    elif ppfd == 140:
-        lighting_radiation = 28
-    else:
-        assert False
-    return lighting_radiation
-
-
-def calc_net_radiation(ppfd, reflection_coefficient=0.05, cultivation_area_coverage=0.9):
-    """
-    8. Submodel for net radiation
-    Rnet = (1 - ρr) * Ilighting * CAC
-    ρr: reflection coefficient
-    Ilighting: radiation
-    CAC: cultivation area cover
-    
-    NOTES
-    -----
-    cultivation_area_coverage = 0.9 # value from section 3.1.1 of paper
-    reflection_coefficient = 0.05 # Luuk Gaamans personal communication
-    """
-    lighting_radiation = calc_lighting_radiation(ppfd)
-    return (1 - reflection_coefficient) * lighting_radiation * cultivation_area_coverage
-
-
-def calc_latent_heat_flux(temp_air, temp_surface, relative_humidity, ppfd, lai, vapour_resistance):
-    """
-    9. Submodel for stomatal resistance
-    rs = 60 * (1500 + PPFD) / (220  + PPFD)
-    PPFD: photosynthetic photon flux density (μmol/m2s)
-    
-    6. Latent Heat Flux λE - I think this is the evapotranspiration rate
-    λE = LAI * λ * (χs - χa) / (rs + ra)
-    λ: latent heat of the evaporation of water
-    χs: vapour concentration at the transpiring surface
-    χa:  vapour concentration in surrounding air
-    rs: surface (or stomatal) resistance
-    ra: aerodynamic resistance to vapour transfer
-    """
-    vapour_pressure_air = calc_vapour_pressure_air(temp_air, relative_humidity)
-    vapour_pressure_surface = calc_vapour_pressure_surface(temp_air, temp_surface, vapour_pressure_air)
-    stomatal_resistance = calc_stomatal_resistance(ppfd)
-    return lai * LATENT_HEAT_WATER * ( (vapour_pressure_surface - vapour_pressure_air) / (stomatal_resistance + vapour_resistance) )
-
-
-def calc_stomatal_resistance(ppfd):
-    return 60 * (1500 + ppfd) / (220 + ppfd)
-
-
-def calc_sensible_heat_exchange(temp_air, temp_surface, lai, vapour_resistance):
-    """
-    5. Sensible heat exchange H
-    H = LAI * ρa * cp * (Ts - Ta / ra)
-    LAI: Leaf Area Index
-    ρa: Density of air
-    cp: Heat capacity of air - CHECK IS  ρacp in table
-    Ts: temperature at the transpiring surface
-    Ta: temperature of surrounding air
-    ra: aerodynamic resistance to heat
-    """
-    return lai * DENSITY_OF_AIR * HEAT_CAPACITY_OF_AIR * ((temp_surface - temp_air) / vapour_resistance)
 
 def calc_temp_surface(temp_air, ppfd, relative_humidity, lai=3, vapour_resistance=100):
     """
@@ -206,13 +76,168 @@ def calc_temp_surface(temp_air, ppfd, relative_humidity, lai=3, vapour_resistanc
     temp_surface = result.root
     return temp_surface
 
+
+def calc_net_radiation(ppfd, reflection_coefficient=0.05, cultivation_area_coverage=0.9):
+    """
+    8. Submodel for net radiation
+    Rnet = (1 - ρr) * Ilighting * CAC
+    ρr: reflection coefficient
+    Ilighting: radiation
+    CAC: cultivation area cover
+    
+    NOTES
+    -----
+    cultivation_area_coverage = 0.9 # value from section 3.1.1 of paper
+    reflection_coefficient = 0.05 # Luuk Gaamans personal communication
+    """
+    lighting_radiation = calc_lighting_radiation(ppfd)
+    return (1 - reflection_coefficient) * lighting_radiation * cultivation_area_coverage
+
+def calc_lighting_radiation(ppfd):
+    """Values taken from paper
+    """
+    # Guess from paper
+    if ppfd == 600:
+        lighting_radiation = 120
+    elif ppfd == 140:
+        lighting_radiation = 28
+    else:
+        assert False
+    return lighting_radiation
+
+
+def calc_sensible_heat_exchange(temp_air, temp_surface, lai, vapour_resistance):
+    """
+    5. Sensible heat exchange H
+    H = LAI * ρa * cp * (Ts - Ta / ra)
+    LAI: Leaf Area Index
+    ρa: Density of air
+    cp: Heat capacity of air
+    Ts: temperature at the transpiring surface
+    Ta: temperature of surrounding air
+    ra: aerodynamic resistance to heat
+    """
+    return lai * DENSITY_OF_AIR * HEAT_CAPACITY_OF_AIR * ((temp_surface - temp_air) / vapour_resistance)
+
+
+def calc_latent_heat_flux(temp_air, temp_surface, relative_humidity, ppfd, lai, vapour_resistance):
+    """
+    9. Submodel for stomatal resistance
+    rs = 60 * (1500 + PPFD) / (220  + PPFD)
+    PPFD: photosynthetic photon flux density (μmol/m2s)
+    
+    6. Latent Heat Flux λE - I think this is the evapotranspiration rate
+    λE = LAI * λ * (χs - χa) / (rs + ra)
+    λ: latent heat of the evaporation of water
+    χs: vapour concentration at the transpiring surface
+    χa:  vapour concentration in surrounding air
+    rs: surface (or stomatal) resistance
+    ra: aerodynamic resistance to vapour transfer
+    """
+    vapour_pressure_air = calc_vapour_pressure_air(temp_air, relative_humidity)
+    vapour_pressure_surface = calc_vapour_pressure_surface(temp_air, temp_surface, vapour_pressure_air)
+    
+    vapour_concentration_air = vapour_concentration_from_pressure(vapour_pressure_air, temp_air)
+    vapour_concentration_surface = vapour_concentration_from_pressure(vapour_pressure_surface, temp_surface)
+    
+    stomatal_resistance = calc_stomatal_resistance(ppfd)
+    #return lai * LATENT_HEAT_WATER * ( (vapour_pressure_surface - vapour_pressure_air) / (stomatal_resistance + vapour_resistance) )
+    return lai * LATENT_HEAT_WATER * ( (vapour_concentration_surface - vapour_concentration_air) / (stomatal_resistance + vapour_resistance) )
+
+
+def calc_vapour_pressure_air(temp_air, relative_humidity):
+    """
+    jmht added - seems to get different results from below
+    From: http://www.fao.org/3/X0490E/x0490e0k.htm
+    saturated_vapour_pressure = 0.6108 * math.exp((17.27 * temp_air) / (temp_air + 237.3))
+    Luuk Gaamans personal communication:
+        Vapour concentration in the air = Relative humidity * saturated vapour concentration at air temperature (g m-3)
+        Additional information:
+        https://www.engineeringtoolbox.com/water-vapor-saturation-pressure-air-d_689.html
+        https://www.engineeringtoolbox.com/relative-humidity-air-d_687.html
+    """
+    saturated_vapour_pressure = calc_saturated_vapour_pressure_air(temp_air)
+    return saturated_vapour_pressure * relative_humidity / 100
+
+
+def calc_saturated_vapour_pressure_air(temp_air):
+    """Saturated vapour pressure of air in Pascals
+     given air temperature in Degress Celsius
+    From: https://www.engineeringtoolbox.com/water-vapor-saturation-pressure-air-d_689.html
+    """
+    temp_air_k = temp_air + 273
+    return math.exp(77.345 + (0.0057 * temp_air_k) - (7235 / temp_air_k) ) / temp_air_k**8.2
+
+
+def calc_saturated_vapour_pressure_air_FAO(temp_air):
+    """
+    From: http://www.fao.org/3/X0490E/x0490e0k.htm
+    Results are in kPa so multiply by 1000
+    slightly different results from above
+    
+    """
+    return 0.611 * math.exp((17.27 * temp_air) / (temp_air + 237.3)) * 1000
+
+
+def calc_vapour_pressure_surface(temp_air, temp_surface, vapour_pressure_air):
+    """
+    7. Relation of χs to χa
+    χs = χa + (ρa * cp) / λ * ε * (Ts - Ta)
+    λ: latent heat of the evaporation of water
+    ρa: Density of air
+    cp: Heat capacity of air - CHECK IS  ρacp in table
+    χs: vapour concentration at the transpiring surface
+    χa:  vapour concentration in surrounding air
+    ε: vapour concentration (slope of the saturation function curve)
+
+    """
+    epsilon = calc_epsilon(temp_air)
+    return vapour_pressure_air + ((DENSITY_OF_AIR * HEAT_CAPACITY_OF_AIR) / LATENT_HEAT_WATER) * \
+           epsilon * (temp_surface - temp_air)
+
+
+def calc_epsilon(temp_air):
+    """
+    Unitless but for kPa - so need to make sure everything else matches
+    
+    epsilon relates the vapour_pressure to concentration. Explanation from Luuk:
+        The simplest way to calculate it is epsilon = delta / gamma
+        Where delta = 0.04145*exp(0.06088*T_s) (kPa/C)
+        Gamma = 66.5  (Pascal/K) (gamma is a psychometric constant)
+    """
+    delta = 0.04145 * math.exp(0.06088 * temp_air)
+    return delta / PSYCHOMETRIC_CONSTANT   
+
+def calc_epsilon_FAO(temp_air):
+    """    
+    From: http://www.fao.org/3/X0490E/x0490e0k.htm
+    Disagrees by order of magnitude with above - even with factor of 1000
+    """
+    return ((2504 * math.exp((17.27 * temp_air) / (temp_air + 237.2))) / math.pow((temp_air + 237.2), 2)) / 1000
+
+
+def vapour_concentration_from_pressure(vapour_pressure, temperature):
+    """Calculate concentration in g m-3 from pressure in Pascals for water
+    
+    Ideal Gas Law:
+    PV = nRT => n/V = P/RT
+    
+    Multiply by molar mass to get concentration in g m-3
+    """
+    return vapour_pressure / IDEAL_GAS_CONSTANT * temperature * MOLAR_MASS_H2O
+
+
+def calc_stomatal_resistance(ppfd):
+    return 60 * (1500 + ppfd) / (200 + ppfd)
+
+
 if __name__ == '__main__':
     # variables
     temp_air = 21 # degrees celsius
     ppfd = 600 #  umol m-2
-    relative_humidity = 73
-    lai = 3
-    vapour_resistance = 100
+    relative_humidity = 73 # %
+    lai = 3 # no units
+    vapour_resistance = 100 #  s m-1
     
     temp_surface = calc_temp_surface(temp_air, ppfd, relative_humidity, lai=lai, vapour_resistance=vapour_resistance)
     
