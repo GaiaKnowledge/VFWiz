@@ -51,6 +51,11 @@ MOLAR_MASS_H2O = 18.01528 # g mol-1
 ZERO_DEGREES_IN_KELVIN = 273.15
 
 
+PLANK_CONSTANT = 6.626 * 10**-34
+SPEED_OF_LIGHT =  2.998 * 10**8 # m s-1
+AVOGADRO_NUMBER = 6.0221367 * 10**23
+
+
 def calc_temp_surface(temp_air, ppfd, relative_humidity, lai=3, vapour_resistance=100):
     """
     
@@ -96,12 +101,34 @@ def calc_net_radiation(ppfd, reflection_coefficient=0.05, cultivation_area_cover
 
 def calc_lighting_radiation(ppfd):
     """Values taken from paper
+    
+
+    
+    # Assume 1 mole so just multiply by Avogadro's number as n==1
+    photon_energy = AVOGADRO_NUMBER * PLANK_CONSTANT * n * SPEED_OF_LIGHT  / wavelength
+    
+    0.11970044543035797 = AVOGADRO_NUMBER * PLANK_CONSTANT * SPEED_OF_LIGHT
+    so is 0.11970044543035797 per mole divided by wavelengh
+    
+    
+    PPFD measured in mol m-2 s-1
+    
+    Flux density measured in W m-2
+    
     """
     # Guess from paper
-    if ppfd == 600:
-        lighting_radiation = 120
-    elif ppfd == 140:
+    if ppfd == 140:
         lighting_radiation = 28
+    elif ppfd == 200:
+        lighting_radiation = 41
+    elif ppfd == 300:
+        lighting_radiation = 59
+    elif ppfd == 400:
+        lighting_radiation = 79.6
+    elif ppfd == 450:
+        lighting_radiation = 90.8
+    elif ppfd == 600:
+        lighting_radiation = 120
     else:
         assert False
     return lighting_radiation
@@ -232,21 +259,60 @@ def calc_stomatal_resistance(ppfd):
     return 60 * (1500 + ppfd) / (200 + ppfd)
 
 
-if __name__ == '__main__':
+# PHOTON NONSENSE
+    # Assume 1 mole so just multiply by Avogadro's number as n==1
+    #photon_energy = AVOGADRO_NUMBER * PLANK_CONSTANT * n * SPEED_OF_LIGHT  / wavelength
     
+    
+    # E = hf = hc/w
+    
+    # https://www.researchgate.net/post/Can_I_convert_PAR_photo_active_radiation_value_of_micro_mole_M2_S_to_Solar_radiation_in_Watt_m22
+    # Rule of thumb is 1 W m-2 = 4.57 umol m-2 so 140 ppfd ~= 30.6
+    
+    
+    
+    # Luuk has 28.2 for 140 so 4.96
+    
+    import scipy.integrate
+    ppfd = 140 #umol
+    def pe(wavelength, ppfd):
+        # ppfd in umol
+        # wavelength in nm
+        n = ppfd * 10**-6 #
+        return AVOGADRO_NUMBER * PLANK_CONSTANT * SPEED_OF_LIGHT * n / (wavelength * 10**-9)
+    #r = scipy.integrate.quad(pe, 400, 700)
+    #print(pe(700))
+    #print(r)
+    
+#     ppfd = 140 
+#     e = 20.82
+#     w = 804.4165185104332
+    ppfd = 200
+    e = 41.0
+    #w = 555
+    #e = AVOGADRO_NUMBER * PLANK_CONSTANT * SPEED_OF_LIGHT * ppfd * 10**-6  / (w * 10**-9)
+   # print(e)
+    
+    w = AVOGADRO_NUMBER * PLANK_CONSTANT * SPEED_OF_LIGHT * ppfd * 10**-6 / (e * 10**-9)
+    
+    print(w)
+    
+
+
+if __name__ == '__main__':
     # variables
     temp_air = 21 # degrees celsius
     ppfd = 600 #  umol m-2
     relative_humidity = 73 # %
     lai = 3 # no units
     vapour_resistance = 100 #  s m-1
-     
+      
     temp_surface = calc_temp_surface(temp_air, ppfd, relative_humidity, lai=lai, vapour_resistance=vapour_resistance)
-     
+      
     net_radiation = calc_net_radiation(ppfd)
     sensible_heat_exchange = calc_sensible_heat_exchange(temp_air, temp_surface, lai, vapour_resistance)
     latent_heat_flux = calc_latent_heat_flux(temp_air, temp_surface, relative_humidity, ppfd, lai, vapour_resistance)
-      
+       
     print("SURFACE TEMPERATURE ",temp_surface)
     print("NET RADIATION: ",net_radiation)
     print("SENSIBLE HEAT EXCHANGE ", sensible_heat_exchange)
