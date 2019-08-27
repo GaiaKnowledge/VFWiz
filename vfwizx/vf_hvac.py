@@ -24,7 +24,6 @@ https://appgeodb.nancy.inra.fr/biljou/pdf/Allen_FAO1998.pdf
 http://www.fao.org/3/X0490E/x0490e0k.htm
 
 
-
 PV = nRT => n/V = P/RT
 
 """
@@ -48,6 +47,8 @@ PSYCHOMETRIC_CONSTANT = 65.0 # Pa/K
 IDEAL_GAS_CONSTANT = 8.3145 # J mol-1 K-1
 
 MOLAR_MASS_H2O = 18.01528 # g mol-1
+
+ZERO_DEGREES_IN_KELVIN = 273.15
 
 
 def calc_temp_surface(temp_air, ppfd, relative_humidity, lai=3, vapour_resistance=100):
@@ -165,7 +166,7 @@ def calc_saturated_vapour_pressure_air(temp_air):
      given air temperature in Degress Celsius
     From: https://www.engineeringtoolbox.com/water-vapor-saturation-pressure-air-d_689.html
     """
-    temp_air_k = temp_air + 273
+    temp_air_k = temp_air + ZERO_DEGREES_IN_KELVIN
     return math.exp(77.345 + (0.0057 * temp_air_k) - (7235 / temp_air_k) ) / temp_air_k**8.2
 
 
@@ -224,7 +225,7 @@ def vapour_concentration_from_pressure(vapour_pressure, temperature):
     
     Multiply by molar mass to get concentration in g m-3
     """
-    return vapour_pressure / IDEAL_GAS_CONSTANT * temperature * MOLAR_MASS_H2O
+    return vapour_pressure / (IDEAL_GAS_CONSTANT * (temperature + ZERO_DEGREES_IN_KELVIN)) * (MOLAR_MASS_H2O / 1000)
 
 
 def calc_stomatal_resistance(ppfd):
@@ -232,19 +233,20 @@ def calc_stomatal_resistance(ppfd):
 
 
 if __name__ == '__main__':
+    
     # variables
     temp_air = 21 # degrees celsius
     ppfd = 600 #  umol m-2
     relative_humidity = 73 # %
     lai = 3 # no units
     vapour_resistance = 100 #  s m-1
-    
+     
     temp_surface = calc_temp_surface(temp_air, ppfd, relative_humidity, lai=lai, vapour_resistance=vapour_resistance)
-    
+     
     net_radiation = calc_net_radiation(ppfd)
     sensible_heat_exchange = calc_sensible_heat_exchange(temp_air, temp_surface, lai, vapour_resistance)
     latent_heat_flux = calc_latent_heat_flux(temp_air, temp_surface, relative_humidity, ppfd, lai, vapour_resistance)
-     
+      
     print("SURFACE TEMPERATURE ",temp_surface)
     print("NET RADIATION: ",net_radiation)
     print("SENSIBLE HEAT EXCHANGE ", sensible_heat_exchange)
