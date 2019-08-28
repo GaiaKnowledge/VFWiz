@@ -32,9 +32,6 @@ import math
 
 from scipy.optimize import root_scalar
 
-# Source: https://en.wikipedia.org/wiki/Density_of_air - take at 20C 
-DENSITY_OF_AIR = 1.2041 # kg m-3
-
 # https://www.ohio.edu/mechanical/thermo/property_tables/air/air_cp_cv.html at 300K/26.85C
 HEAT_CAPACITY_OF_AIR =  1003 # J kg-1 C-1
 
@@ -55,22 +52,19 @@ PLANK_CONSTANT = 6.626 * 10**-34
 SPEED_OF_LIGHT =  2.998 * 10**8 # m s-1
 AVOGADRO_NUMBER = 6.0221367 * 10**23
 
+KG_TO_G = 1000
+
 logger = logging.getLogger()
 
 
-def calc_temp_surface(temp_air, ppfd, relative_humidity,
-                      lai=3,
-                      vapour_resistance=100,
-                      reflection_coefficient=0.05,
-                      cultivation_area_coverage=0.9):
-    """
-    
-    # Calculation-specific constants
-    lai = 3 # from section 3.1.3 of paper
-    vapour_resistance = 200 # air circulation off
-    vapour_resistance = 100 # air circulation on
-    """
-    
+def calc_temp_surface(*, # Force all keyword arguments
+                      temp_air,
+                      ppfd,
+                      relative_humidity,
+                      lai,
+                      vapour_resistance,
+                      reflection_coefficient,
+                      cultivation_area_coverage):
     logger.info("""Calculating surface temperature with:
     Air temperature: {}
     PPFD: {}
@@ -86,7 +80,7 @@ def calc_temp_surface(temp_air, ppfd, relative_humidity,
         latent_heat_flux = calc_latent_heat_flux(temp_air, temp_surface, relative_humidity, ppfd, lai, vapour_resistance)
         return net_radiation - sensible_heat_exchange - latent_heat_flux
     
-    net_radiation = calc_net_radiation(ppfd, reflection_coefficient=reflection_coefficient, cultivation_area_coverage=cultivation_area_coverage)
+    net_radiation = calc_net_radiation(ppfd, reflection_coefficient, cultivation_area_coverage)
     
     limit = 5.0
     xa = temp_air - limit
@@ -99,7 +93,7 @@ def calc_temp_surface(temp_air, ppfd, relative_humidity,
     return temp_surface
 
 
-def calc_net_radiation(ppfd, reflection_coefficient=0.05, cultivation_area_coverage=0.9):
+def calc_net_radiation(ppfd, reflection_coefficient, cultivation_area_coverage):
     """
     8. Submodel for net radiation
     Rnet = (1 - ρr) * Ilighting * CAC
@@ -115,21 +109,47 @@ def calc_net_radiation(ppfd, reflection_coefficient=0.05, cultivation_area_cover
     lighting_radiation = calc_lighting_radiation(ppfd)
     return (1 - reflection_coefficient) * lighting_radiation * cultivation_area_coverage
 
+
 def calc_lighting_radiation(ppfd):
     """Values taken from paper
     
-
     
-    # Assume 1 mole so just multiply by Avogadro's number as n==1
+    # E = hf = hc/w
     photon_energy = AVOGADRO_NUMBER * PLANK_CONSTANT * n * SPEED_OF_LIGHT  / wavelength
-    
-    0.11970044543035797 = AVOGADRO_NUMBER * PLANK_CONSTANT * SPEED_OF_LIGHT
-    so is 0.11970044543035797 per mole divided by wavelengh
-    
     
     PPFD measured in mol m-2 s-1
     
     Flux density measured in W m-2
+    
+    
+    # https://www.researchgate.net/post/Can_I_convert_PAR_photo_active_radiation_value_of_micro_mole_M2_S_to_Solar_radiation_in_Watt_m22
+    # Rule of thumb is 1 W m-2 = 4.57 umol m-2 so 140 ppfd ~= 30.6
+    
+    
+    
+#     import scipy.integrate
+#     ppfd = 140 #umol
+#     def pe(wavelength, ppfd):
+#         # ppfd in umol
+#         # wavelength in nm
+#         n = ppfd * 10**-6 #
+#         return AVOGADRO_NUMBER * PLANK_CONSTANT * SPEED_OF_LIGHT * n / (wavelength * 10**-9)
+#     #r = scipy.integrate.quad(pe, 400, 700)
+#     #print(pe(700))
+#     #print(r)
+#     
+# #     ppfd = 140 
+# #     e = 20.82
+# #     w = 804.4165185104332
+#     ppfd = 200
+#     e = 41.0
+#     #w = 555
+#     #e = AVOGADRO_NUMBER * PLANK_CONSTANT * SPEED_OF_LIGHT * ppfd * 10**-6  / (w * 10**-9)
+#    # print(e)
+#     
+#     w = AVOGADRO_NUMBER * PLANK_CONSTANT * SPEED_OF_LIGHT * ppfd * 10**-6 / (e * 10**-9)
+#     
+#     print(w)
     
     """
     # Guess from paper
@@ -161,7 +181,7 @@ def calc_sensible_heat_exchange(temp_air, temp_surface, lai, vapour_resistance):
     Ta: temperature of surrounding air
     ra: aerodynamic resistance to heat
     """
-    return lai * DENSITY_OF_AIR * HEAT_CAPACITY_OF_AIR * ((temp_surface - temp_air) / vapour_resistance)
+    return lai * HEAT_CAPACITY_OF_AIR * ((temp_surface - temp_air) / vapour_resistance)
 
 
 def calc_latent_heat_flux(temp_air, temp_surface, relative_humidity, ppfd, lai, vapour_resistance):
@@ -183,14 +203,14 @@ def calc_latent_heat_flux(temp_air, temp_surface, relative_humidity, ppfd, lai, 
     vapour_pressure_surface = calc_vapour_pressure_surface(temp_air, temp_surface, vapour_pressure_air)
     logger.debug('vapour pressure surface: {}'.format(vapour_pressure_surface))
     
-    vapour_concentration_air = vapour_concentration_from_pressure(vapour_pressure_air, temp_air)
-    logger.debug('vapour concentration air: {}'.format(vapour_concentration_air))
-    vapour_concentration_surface = vapour_concentration_from_pressure(vapour_pressure_surface, temp_surface)
-    logger.debug('vapour concentration surface: {}'.format(vapour_concentration_surface))
+#     vapour_concentration_air = vapour_concentration_from_pressure(vapour_pressure_air, temp_air)
+#     logger.debug('vapour concentration air: {}'.format(vapour_concentration_air))
+#     vapour_concentration_surface = vapour_concentration_from_pressure(vapour_pressure_surface, temp_surface)
+#     logger.debug('vapour concentration surface: {}'.format(vapour_concentration_surface))
     
     stomatal_resistance = calc_stomatal_resistance(ppfd)
-    #return lai * LATENT_HEAT_WATER * ( (vapour_pressure_surface - vapour_pressure_air) / (stomatal_resistance + vapour_resistance) )
-    return lai * LATENT_HEAT_WATER * ( (vapour_concentration_surface - vapour_concentration_air) / (stomatal_resistance + vapour_resistance) )
+    return lai * LATENT_HEAT_WATER * KG_TO_G * ( (vapour_pressure_surface - vapour_pressure_air) / (stomatal_resistance + vapour_resistance) )
+#     return lai * LATENT_HEAT_WATER* KG_TO_G * ( (vapour_concentration_surface - vapour_concentration_air) / (stomatal_resistance + vapour_resistance) )
 
 
 def calc_vapour_pressure_air(temp_air, relative_humidity):
@@ -240,7 +260,7 @@ def calc_vapour_pressure_surface(temp_air, temp_surface, vapour_pressure_air):
 
     """
     epsilon = calc_epsilon(temp_air)
-    return vapour_pressure_air + ((DENSITY_OF_AIR * HEAT_CAPACITY_OF_AIR) / LATENT_HEAT_WATER) * \
+    return vapour_pressure_air + (HEAT_CAPACITY_OF_AIR / LATENT_HEAT_WATER * KG_TO_G) * \
            epsilon * (temp_surface - temp_air)
 
 
@@ -265,14 +285,15 @@ def calc_epsilon_FAO(temp_air):
 
 
 def vapour_concentration_from_pressure(vapour_pressure, temperature):
-    """Calculate concentration in g m-3 from pressure in Pascals for water
+    """Calculate concentration in kg m-3 from pressure in Pascals for water
     
     Ideal Gas Law:
     PV = nRT => n/V = P/RT
     
-    Multiply by molar mass to get concentration in g m-3
+    Multiply by molar mass to get concentration in kg m-3
     """
     return vapour_pressure / (IDEAL_GAS_CONSTANT * (temperature + ZERO_DEGREES_IN_KELVIN)) * (MOLAR_MASS_H2O / 1000)
+#     return vapour_pressure / (IDEAL_GAS_CONSTANT * (temperature + ZERO_DEGREES_IN_KELVIN)) * (MOLAR_MASS_H2O)
 
 
 def calc_stomatal_resistance(ppfd):
@@ -280,49 +301,24 @@ def calc_stomatal_resistance(ppfd):
 
 
 
-# PHOTON NONSENSE
-    # Assume 1 mole so just multiply by Avogadro's number as n==1
-    #photon_energy = AVOGADRO_NUMBER * PLANK_CONSTANT * n * SPEED_OF_LIGHT  / wavelength
-    
-    
-    # E = hf = hc/w
-    
-    # https://www.researchgate.net/post/Can_I_convert_PAR_photo_active_radiation_value_of_micro_mole_M2_S_to_Solar_radiation_in_Watt_m22
-    # Rule of thumb is 1 W m-2 = 4.57 umol m-2 so 140 ppfd ~= 30.6
-    
-    
-    
-    # Luuk has 28.2 for 140 so 4.96
-    
-#     import scipy.integrate
-#     ppfd = 140 #umol
-#     def pe(wavelength, ppfd):
-#         # ppfd in umol
-#         # wavelength in nm
-#         n = ppfd * 10**-6 #
-#         return AVOGADRO_NUMBER * PLANK_CONSTANT * SPEED_OF_LIGHT * n / (wavelength * 10**-9)
-#     #r = scipy.integrate.quad(pe, 400, 700)
-#     #print(pe(700))
-#     #print(r)
-#     
-# #     ppfd = 140 
-# #     e = 20.82
-# #     w = 804.4165185104332
-#     ppfd = 200
-#     e = 41.0
-#     #w = 555
-#     #e = AVOGADRO_NUMBER * PLANK_CONSTANT * SPEED_OF_LIGHT * ppfd * 10**-6  / (w * 10**-9)
-#    # print(e)
-#     
-#     w = AVOGADRO_NUMBER * PLANK_CONSTANT * SPEED_OF_LIGHT * ppfd * 10**-6 / (e * 10**-9)
-#     
-#     print(w)
-    
-
-
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG)
     
+#     print(calc_epsilon(20))
+#     print(calc_epsilon(21))
+#     print(calc_epsilon(22))
+#     print(calc_epsilon(23))
+#     print(calc_epsilon(24))
+#     epsilon = calc_epsilon(24)
+#     # 0.0027489543738581732
+#     y = HEAT_CAPACITY_OF_AIR / LATENT_HEAT_WATER * KG_TO_G
+#     print(y)
+#     # 0.0005332757688087411
+#     x = y * epsilon
+#     print(x)
+#     # 1.465950757139369e-06
+    
+    logging.basicConfig(level=logging.DEBUG)
+      
     # variables
     temp_air = 21 # degrees celsius
     ppfd = 600 #  umol m-2
@@ -331,20 +327,25 @@ if __name__ == '__main__':
     vapour_resistance = 100 #  s m-1
     reflection_coefficient = 0.05
     cultivation_area_coverage = 1.0
-      
-    temp_surface = calc_temp_surface(temp_air,
-                                     ppfd,
-                                     relative_humidity,
+        
+    temp_surface = calc_temp_surface(temp_air=temp_air,
+                                     ppfd=ppfd,
+                                     relative_humidity=relative_humidity,
                                      lai=lai,
                                      vapour_resistance=vapour_resistance,
                                      reflection_coefficient=reflection_coefficient,
                                      cultivation_area_coverage=cultivation_area_coverage)
     logger.info("Calculated surface temperature of: {}".format(temp_surface))
-      
-    net_radiation = calc_net_radiation(ppfd, reflection_coefficient=reflection_coefficient, cultivation_area_coverage=cultivation_area_coverage)
+        
+    net_radiation = calc_net_radiation(ppfd, reflection_coefficient, cultivation_area_coverage)
     sensible_heat_exchange = calc_sensible_heat_exchange(temp_air, temp_surface, lai, vapour_resistance)
     latent_heat_flux = calc_latent_heat_flux(temp_air, temp_surface, relative_humidity, ppfd, lai, vapour_resistance)
-       
+     
+     
+    svp = calc_saturated_vapour_pressure_air(temp_air)
+    svc = vapour_concentration_from_pressure(svp, temp_air)
+    print("VAPOUR PRESSURE DEFICIT ", svc * (1-(relative_humidity/100)) * 1000)
+         
     print("SURFACE TEMPERATURE ",temp_surface)
     print("NET RADIATION: ",net_radiation)
     print("SENSIBLE HEAT EXCHANGE ", sensible_heat_exchange)
