@@ -27,7 +27,7 @@ http://www.fao.org/3/X0490E/x0490e0k.htm
 PV = nRT => n/V = P/RT
 
 """
-
+import logging
 import math
 
 from scipy.optimize import root_scalar
@@ -55,8 +55,14 @@ PLANK_CONSTANT = 6.626 * 10**-34
 SPEED_OF_LIGHT =  2.998 * 10**8 # m s-1
 AVOGADRO_NUMBER = 6.0221367 * 10**23
 
+logger = logging.getLogger()
 
-def calc_temp_surface(temp_air, ppfd, relative_humidity, lai=3, vapour_resistance=100):
+
+def calc_temp_surface(temp_air, ppfd, relative_humidity,
+                      lai=3,
+                      vapour_resistance=100,
+                      reflection_coefficient=0.05,
+                      cultivation_area_coverage=0.9):
     """
     
     # Calculation-specific constants
@@ -64,13 +70,23 @@ def calc_temp_surface(temp_air, ppfd, relative_humidity, lai=3, vapour_resistanc
     vapour_resistance = 200 # air circulation off
     vapour_resistance = 100 # air circulation on
     """
+    
+    logger.info("""Calculating surface temperature with:
+    Air temperature: {}
+    PPFD: {}
+    Relative Humidity {}
+    LAI: {}
+    Vapour resistance: {}
+    Reflection, coefficient: {}
+    Cultivation Area Coverage: {}
+""".format(temp_air, ppfd, relative_humidity, lai, vapour_resistance, reflection_coefficient, cultivation_area_coverage))
 
     def calc_residual(temp_surface, net_radiation):
         sensible_heat_exchange = calc_sensible_heat_exchange(temp_air, temp_surface, lai, vapour_resistance)
         latent_heat_flux = calc_latent_heat_flux(temp_air, temp_surface, relative_humidity, ppfd, lai, vapour_resistance)
         return net_radiation - sensible_heat_exchange - latent_heat_flux
     
-    net_radiation = calc_net_radiation(ppfd)
+    net_radiation = calc_net_radiation(ppfd, reflection_coefficient=reflection_coefficient, cultivation_area_coverage=cultivation_area_coverage)
     
     limit = 5.0
     xa = temp_air - limit
@@ -163,10 +179,14 @@ def calc_latent_heat_flux(temp_air, temp_surface, relative_humidity, ppfd, lai, 
     ra: aerodynamic resistance to vapour transfer
     """
     vapour_pressure_air = calc_vapour_pressure_air(temp_air, relative_humidity)
+    logger.debug('vapour pressure air: {}'.format(vapour_pressure_air))
     vapour_pressure_surface = calc_vapour_pressure_surface(temp_air, temp_surface, vapour_pressure_air)
+    logger.debug('vapour pressure surface: {}'.format(vapour_pressure_surface))
     
     vapour_concentration_air = vapour_concentration_from_pressure(vapour_pressure_air, temp_air)
+    logger.debug('vapour concentration air: {}'.format(vapour_concentration_air))
     vapour_concentration_surface = vapour_concentration_from_pressure(vapour_pressure_surface, temp_surface)
+    logger.debug('vapour concentration surface: {}'.format(vapour_concentration_surface))
     
     stomatal_resistance = calc_stomatal_resistance(ppfd)
     #return lai * LATENT_HEAT_WATER * ( (vapour_pressure_surface - vapour_pressure_air) / (stomatal_resistance + vapour_resistance) )
@@ -259,6 +279,7 @@ def calc_stomatal_resistance(ppfd):
     return 60 * (1500 + ppfd) / (200 + ppfd)
 
 
+
 # PHOTON NONSENSE
     # Assume 1 mole so just multiply by Avogadro's number as n==1
     #photon_energy = AVOGADRO_NUMBER * PLANK_CONSTANT * n * SPEED_OF_LIGHT  / wavelength
@@ -273,43 +294,54 @@ def calc_stomatal_resistance(ppfd):
     
     # Luuk has 28.2 for 140 so 4.96
     
-    import scipy.integrate
-    ppfd = 140 #umol
-    def pe(wavelength, ppfd):
-        # ppfd in umol
-        # wavelength in nm
-        n = ppfd * 10**-6 #
-        return AVOGADRO_NUMBER * PLANK_CONSTANT * SPEED_OF_LIGHT * n / (wavelength * 10**-9)
-    #r = scipy.integrate.quad(pe, 400, 700)
-    #print(pe(700))
-    #print(r)
-    
-#     ppfd = 140 
-#     e = 20.82
-#     w = 804.4165185104332
-    ppfd = 200
-    e = 41.0
-    #w = 555
-    #e = AVOGADRO_NUMBER * PLANK_CONSTANT * SPEED_OF_LIGHT * ppfd * 10**-6  / (w * 10**-9)
-   # print(e)
-    
-    w = AVOGADRO_NUMBER * PLANK_CONSTANT * SPEED_OF_LIGHT * ppfd * 10**-6 / (e * 10**-9)
-    
-    print(w)
+#     import scipy.integrate
+#     ppfd = 140 #umol
+#     def pe(wavelength, ppfd):
+#         # ppfd in umol
+#         # wavelength in nm
+#         n = ppfd * 10**-6 #
+#         return AVOGADRO_NUMBER * PLANK_CONSTANT * SPEED_OF_LIGHT * n / (wavelength * 10**-9)
+#     #r = scipy.integrate.quad(pe, 400, 700)
+#     #print(pe(700))
+#     #print(r)
+#     
+# #     ppfd = 140 
+# #     e = 20.82
+# #     w = 804.4165185104332
+#     ppfd = 200
+#     e = 41.0
+#     #w = 555
+#     #e = AVOGADRO_NUMBER * PLANK_CONSTANT * SPEED_OF_LIGHT * ppfd * 10**-6  / (w * 10**-9)
+#    # print(e)
+#     
+#     w = AVOGADRO_NUMBER * PLANK_CONSTANT * SPEED_OF_LIGHT * ppfd * 10**-6 / (e * 10**-9)
+#     
+#     print(w)
     
 
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.DEBUG)
+    
     # variables
     temp_air = 21 # degrees celsius
     ppfd = 600 #  umol m-2
     relative_humidity = 73 # %
     lai = 3 # no units
     vapour_resistance = 100 #  s m-1
+    reflection_coefficient = 0.05
+    cultivation_area_coverage = 1.0
       
-    temp_surface = calc_temp_surface(temp_air, ppfd, relative_humidity, lai=lai, vapour_resistance=vapour_resistance)
+    temp_surface = calc_temp_surface(temp_air,
+                                     ppfd,
+                                     relative_humidity,
+                                     lai=lai,
+                                     vapour_resistance=vapour_resistance,
+                                     reflection_coefficient=reflection_coefficient,
+                                     cultivation_area_coverage=cultivation_area_coverage)
+    logger.info("Calculated surface temperature of: {}".format(temp_surface))
       
-    net_radiation = calc_net_radiation(ppfd)
+    net_radiation = calc_net_radiation(ppfd, reflection_coefficient=reflection_coefficient, cultivation_area_coverage=cultivation_area_coverage)
     sensible_heat_exchange = calc_sensible_heat_exchange(temp_air, temp_surface, lai, vapour_resistance)
     latent_heat_flux = calc_latent_heat_flux(temp_air, temp_surface, relative_humidity, ppfd, lai, vapour_resistance)
        
@@ -318,6 +350,7 @@ if __name__ == '__main__':
     print("SENSIBLE HEAT EXCHANGE ", sensible_heat_exchange)
     print("LATENT HEAT FLUX ", latent_heat_flux)
     print("STOMATAL RESISTANCE", calc_stomatal_resistance(ppfd))
+
 
 
 
