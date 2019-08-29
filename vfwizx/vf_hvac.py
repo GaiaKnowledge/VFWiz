@@ -34,16 +34,18 @@ from scipy.optimize import root_scalar
 
 # https://www.ohio.edu/mechanical/thermo/property_tables/air/air_cp_cv.html at 300K/26.85C
 HEAT_CAPACITY_OF_AIR =  1003 # J kg-1 C-1
+HEAT_CAPACITY_OF_AIR_GRAMS =  1.003 # J g-1 C-1
 
 # Need canonical reference: https://en.wikipedia.org/wiki/Latent_heat
 LATENT_HEAT_WATER = 2264705 # J Kg-1
+LATENT_HEAT_WATER_GRAMS = 2264.705 # J g-1
 
 # Valye from paper
 PSYCHOMETRIC_CONSTANT = 65.0 # Pa/K
 
 IDEAL_GAS_CONSTANT = 8.3145 # J mol-1 K-1
 
-MOLAR_MASS_H2O = 18.01528 # g mol-1
+MOLAR_MASS_H2O_GRAMS = 18.01528 # g mol-1
 
 ZERO_DEGREES_IN_KELVIN = 273.15
 
@@ -51,8 +53,6 @@ ZERO_DEGREES_IN_KELVIN = 273.15
 PLANK_CONSTANT = 6.626 * 10**-34
 SPEED_OF_LIGHT =  2.998 * 10**8 # m s-1
 AVOGADRO_NUMBER = 6.0221367 * 10**23
-
-KG_TO_G = 1000
 
 logger = logging.getLogger()
 
@@ -78,11 +78,12 @@ def calc_temp_surface(*, # Force all keyword arguments
     def calc_residual(temp_surface, net_radiation):
         sensible_heat_exchange = calc_sensible_heat_exchange(temp_air, temp_surface, lai, vapour_resistance)
         latent_heat_flux = calc_latent_heat_flux(temp_air, temp_surface, relative_humidity, ppfd, lai, vapour_resistance)
+        logger.debug("TEMP, SENSIBLE, LATENT, NET: %s %s %s %s",temp_surface, sensible_heat_exchange, latent_heat_flux, net_radiation)
         return net_radiation - sensible_heat_exchange - latent_heat_flux
     
     net_radiation = calc_net_radiation(ppfd, reflection_coefficient, cultivation_area_coverage)
     
-    limit = 5.0
+    limit = 3.0
     xa = temp_air - limit
     xb = temp_air + limit
     args = (net_radiation,)
@@ -181,7 +182,7 @@ def calc_sensible_heat_exchange(temp_air, temp_surface, lai, vapour_resistance):
     Ta: temperature of surrounding air
     ra: aerodynamic resistance to heat
     """
-    return lai * HEAT_CAPACITY_OF_AIR * ((temp_surface - temp_air) / vapour_resistance)
+    return lai * HEAT_CAPACITY_OF_AIR_GRAMS * ((temp_surface - temp_air) / vapour_resistance)
 
 
 def calc_latent_heat_flux(temp_air, temp_surface, relative_humidity, ppfd, lai, vapour_resistance):
@@ -198,10 +199,14 @@ def calc_latent_heat_flux(temp_air, temp_surface, relative_humidity, ppfd, lai, 
     rs: surface (or stomatal) resistance
     ra: aerodynamic resistance to vapour transfer
     """
-    vapour_pressure_air = calc_vapour_pressure_air(temp_air, relative_humidity)
-    logger.debug('vapour pressure air: {}'.format(vapour_pressure_air))
-    vapour_pressure_surface = calc_vapour_pressure_surface(temp_air, temp_surface, vapour_pressure_air)
-    logger.debug('vapour pressure surface: {}'.format(vapour_pressure_surface))
+#     vapour_pressure_air = calc_vapour_pressure_air(temp_air, relative_humidity)
+#     logger.debug('vapour pressure air: {}'.format(vapour_pressure_air))
+#     vapour_pressure_surface = calc_vapour_pressure_surface(temp_air, temp_surface, vapour_pressure_air)
+#     logger.debug('vapour pressure surface: {}'.format(vapour_pressure_surface))
+    vapour_concentration_air = calc_vapour_concentration_air(temp_air, relative_humidity)
+    logger.debug('vapour concentration air: {}'.format(vapour_concentration_air))
+    vapour_concentration_surface = calc_vapour_concentration_surface(temp_air, temp_surface, vapour_concentration_air)
+    logger.debug('vapour concentration surface: {}'.format(vapour_concentration_surface))
     
 #     vapour_concentration_air = vapour_concentration_from_pressure(vapour_pressure_air, temp_air)
 #     logger.debug('vapour concentration air: {}'.format(vapour_concentration_air))
@@ -209,28 +214,43 @@ def calc_latent_heat_flux(temp_air, temp_surface, relative_humidity, ppfd, lai, 
 #     logger.debug('vapour concentration surface: {}'.format(vapour_concentration_surface))
     
     stomatal_resistance = calc_stomatal_resistance(ppfd)
-    return lai * LATENT_HEAT_WATER * KG_TO_G * ( (vapour_pressure_surface - vapour_pressure_air) / (stomatal_resistance + vapour_resistance) )
-#     return lai * LATENT_HEAT_WATER* KG_TO_G * ( (vapour_concentration_surface - vapour_concentration_air) / (stomatal_resistance + vapour_resistance) )
+#     return lai * LATENT_HEAT_WATER_GRAMS * ( (vapour_pressure_surface - vapour_pressure_air) / (stomatal_resistance + vapour_resistance) )
+    return lai * LATENT_HEAT_WATER_GRAMS * ( (vapour_concentration_surface - vapour_concentration_air) / (stomatal_resistance + vapour_resistance) )
 
 
-def calc_vapour_pressure_air(temp_air, relative_humidity):
+# def XXXcalc_vapour_pressure_air(temp_air, relative_humidity):
+#     """
+#     jmht added - seems to get different results from below
+#     From: http://www.fao.org/3/X0490E/x0490e0k.htm
+#     saturated_vapour_pressure = 0.6108 * math.exp((17.27 * temp_air) / (temp_air + 237.3))
+#     Luuk Gaamans personal communication:
+#         Vapour concentration in the air = Relative humidity * saturated vapour concentration at air temperature (g m-3)
+#         Additional information:
+#         https://www.engineeringtoolbox.com/water-vapor-saturation-pressure-air-d_689.html
+#         https://www.engineeringtoolbox.com/relative-humidity-air-d_687.html
+#     """
+#     saturated_vapour_pressure = calc_saturated_vapour_pressure_air(temp_air)
+#     return saturated_vapour_pressure * relative_humidity / 100
+
+def calc_vapour_concentration_air(temp_air, relative_humidity):
     """
-    jmht added - seems to get different results from below
-    From: http://www.fao.org/3/X0490E/x0490e0k.htm
-    saturated_vapour_pressure = 0.6108 * math.exp((17.27 * temp_air) / (temp_air + 237.3))
     Luuk Gaamans personal communication:
         Vapour concentration in the air = Relative humidity * saturated vapour concentration at air temperature (g m-3)
         Additional information:
         https://www.engineeringtoolbox.com/water-vapor-saturation-pressure-air-d_689.html
         https://www.engineeringtoolbox.com/relative-humidity-air-d_687.html
     """
+    return calc_saturated_vapour_concentration_air(temp_air) * relative_humidity / 100
+
+
+def calc_saturated_vapour_concentration_air(temp_air):
+    """saturated_vapour_concentration_air in g m-3 from temperature in degrees Celsius"""
     saturated_vapour_pressure = calc_saturated_vapour_pressure_air(temp_air)
-    return saturated_vapour_pressure * relative_humidity / 100
+    return vapour_concentration_from_pressure(saturated_vapour_pressure, temp_air)
 
 
 def calc_saturated_vapour_pressure_air(temp_air):
-    """Saturated vapour pressure of air in Pascals
-     given air temperature in Degress Celsius
+    """Saturated vapour pressure of air in Pascals given air temperature in Degrees Celsius
     From: https://www.engineeringtoolbox.com/water-vapor-saturation-pressure-air-d_689.html
     """
     temp_air_k = temp_air + ZERO_DEGREES_IN_KELVIN
@@ -238,29 +258,44 @@ def calc_saturated_vapour_pressure_air(temp_air):
 
 
 def calc_saturated_vapour_pressure_air_FAO(temp_air):
-    """
-    From: http://www.fao.org/3/X0490E/x0490e0k.htm
-    Results are in kPa so multiply by 1000
-    slightly different results from above
+    """Saturated vapour pressure of air at temp_air in kPa
     
+    From: http://www.fao.org/3/X0490E/x0490e0k.htm
     """
-    return 0.611 * math.exp((17.27 * temp_air) / (temp_air + 237.3)) * 1000
+    return 0.611 * math.exp((17.27 * temp_air) / (temp_air + 237.3))
 
 
-def calc_vapour_pressure_surface(temp_air, temp_surface, vapour_pressure_air):
+# def XXXcalc_vapour_pressure_surface(temp_air, temp_surface, vapour_pressure_air):
+#     """
+#     7. Relation of χs to χa
+#     χs = χa + (ρa * cp) / λ * ε * (Ts - Ta)
+#     λ: latent heat of the evaporation of water
+#     ρa: Density of air
+#     cp: Specific heat of air
+#     χs: vapour concentration at the transpiring surface
+#     χa:  vapour concentration in surrounding air
+#     ε: vapour concentration (slope of the saturation function curve)
+# 
+#     """
+#     epsilon = calc_epsilon(temp_air)
+#     return vapour_pressure_air + (HEAT_CAPACITY_OF_AIR_GRAMS / LATENT_HEAT_WATER_GRAMS) * \
+#            epsilon * (temp_surface - temp_air)
+
+
+def calc_vapour_concentration_surface(temp_air, temp_surface, vapour_concentration_air):
     """
     7. Relation of χs to χa
     χs = χa + (ρa * cp) / λ * ε * (Ts - Ta)
     λ: latent heat of the evaporation of water
     ρa: Density of air
-    cp: Heat capacity of air - CHECK IS  ρacp in table
+    cp: Specific heat of air
     χs: vapour concentration at the transpiring surface
     χa:  vapour concentration in surrounding air
     ε: vapour concentration (slope of the saturation function curve)
 
     """
     epsilon = calc_epsilon(temp_air)
-    return vapour_pressure_air + (HEAT_CAPACITY_OF_AIR / LATENT_HEAT_WATER * KG_TO_G) * \
+    return vapour_concentration_air + (HEAT_CAPACITY_OF_AIR_GRAMS / LATENT_HEAT_WATER_GRAMS) * \
            epsilon * (temp_surface - temp_air)
 
 
@@ -285,15 +320,14 @@ def calc_epsilon_FAO(temp_air):
 
 
 def vapour_concentration_from_pressure(vapour_pressure, temperature):
-    """Calculate concentration in kg m-3 from pressure in Pascals for water
+    """Calculate concentration in g m-3 from pressure in Pascals for Water
     
     Ideal Gas Law:
     PV = nRT => n/V = P/RT
     
-    Multiply by molar mass to get concentration in kg m-3
+    Multiply by molar mass to get concentration in g m-3
     """
-    return vapour_pressure / (IDEAL_GAS_CONSTANT * (temperature + ZERO_DEGREES_IN_KELVIN)) * (MOLAR_MASS_H2O / 1000)
-#     return vapour_pressure / (IDEAL_GAS_CONSTANT * (temperature + ZERO_DEGREES_IN_KELVIN)) * (MOLAR_MASS_H2O)
+    return vapour_pressure / (IDEAL_GAS_CONSTANT * (temperature + ZERO_DEGREES_IN_KELVIN)) * (MOLAR_MASS_H2O_GRAMS)
 
 
 def calc_stomatal_resistance(ppfd):
@@ -310,7 +344,7 @@ if __name__ == '__main__':
 #     print(calc_epsilon(24))
 #     epsilon = calc_epsilon(24)
 #     # 0.0027489543738581732
-#     y = HEAT_CAPACITY_OF_AIR / LATENT_HEAT_WATER * KG_TO_G
+#     y = HEAT_CAPACITY_OF_AIR_GRAMS / LATENT_HEAT_WATER_GRAMS
 #     print(y)
 #     # 0.0005332757688087411
 #     x = y * epsilon
