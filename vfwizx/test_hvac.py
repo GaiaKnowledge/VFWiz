@@ -12,6 +12,7 @@ from vf_hvac import calc_stomatal_resistance
 from vf_hvac import calc_net_radiation
 from vf_hvac import calc_saturated_vapour_concentration_air
 from vf_hvac import calc_vapour_concentration_air
+from vf_hvac import calc_vapour_concentration_deficit
 
 
 def test_saturated_vapour_pressure_air():
@@ -40,6 +41,14 @@ def test_calc_vapour_concentration_air():
     assert abs(calc_vapour_concentration_air(temp_air, relative_humidity) - ref_concentration) < 0.1
 
 
+def test_vapour_concentration_deficit():
+    """Data from experiment 3 from table 1 of paper"""
+    temp_air = 21
+    relative_humidity = 76
+    vapour_concentration_deficit = 4.4
+    assert abs(calc_vapour_concentration_deficit(temp_air, relative_humidity) - vapour_concentration_deficit) < 0.1
+
+
 def test_stomatal_resistance():
     ppfd = 140
     ref_stomatal_resistance = 289
@@ -59,9 +68,6 @@ def test_net_radiation():
     cultivation_area_coverage = 0.95
     net_radiation = calc_net_radiation(ppfd, reflection_coefficient, cultivation_area_coverage)
     assert abs(net_radiation - 108.3) < 0.1
-
-
-
 
 
 

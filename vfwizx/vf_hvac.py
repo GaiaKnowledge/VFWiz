@@ -35,10 +35,12 @@ from scipy.optimize import root_scalar
 # https://www.ohio.edu/mechanical/thermo/property_tables/air/air_cp_cv.html at 300K/26.85C
 HEAT_CAPACITY_OF_AIR =  1003 # J kg-1 C-1
 HEAT_CAPACITY_OF_AIR_GRAMS =  1.003 # J g-1 C-1
+HEAT_CAPACITY_OF_AIR_GRAMS =  1003 # J g-1 C-1
 
 # Need canonical reference: https://en.wikipedia.org/wiki/Latent_heat
 LATENT_HEAT_WATER = 2264705 # J Kg-1
 LATENT_HEAT_WATER_GRAMS = 2264.705 # J g-1
+LATENT_HEAT_WATER_GRAMS = 2264705 # J g-1
 
 # Valye from paper
 PSYCHOMETRIC_CONSTANT = 65.0 # Pa/K
@@ -78,12 +80,13 @@ def calc_temp_surface(*, # Force all keyword arguments
     def calc_residual(temp_surface, net_radiation):
         sensible_heat_exchange = calc_sensible_heat_exchange(temp_air, temp_surface, lai, vapour_resistance)
         latent_heat_flux = calc_latent_heat_flux(temp_air, temp_surface, relative_humidity, ppfd, lai, vapour_resistance)
-        logger.debug("TEMP, SENSIBLE, LATENT, NET: %s %s %s %s",temp_surface, sensible_heat_exchange, latent_heat_flux, net_radiation)
-        return net_radiation - sensible_heat_exchange - latent_heat_flux
+        residual = net_radiation - sensible_heat_exchange - latent_heat_flux
+        logger.debug("TEMP, SENSIBLE, LATENT, NET, residual: %s %s %s %s %s",temp_surface, sensible_heat_exchange, latent_heat_flux, net_radiation, residual)
+        return residual
     
     net_radiation = calc_net_radiation(ppfd, reflection_coefficient, cultivation_area_coverage)
     
-    limit = 3.0
+    limit = 10.0
     xa = temp_air - limit
     xb = temp_air + limit
     args = (net_radiation,)
@@ -177,7 +180,7 @@ def calc_sensible_heat_exchange(temp_air, temp_surface, lai, vapour_resistance):
     H = LAI * ρa * cp * (Ts - Ta / ra)
     LAI: Leaf Area Index
     ρa: Density of air
-    cp: Heat capacity of air
+    cp: Specific heat of air
     Ts: temperature at the transpiring surface
     Ta: temperature of surrounding air
     ra: aerodynamic resistance to heat
@@ -334,6 +337,11 @@ def calc_stomatal_resistance(ppfd):
     return 60 * (1500 + ppfd) / (200 + ppfd)
 
 
+def calc_vapour_concentration_deficit(temp_air, relative_humidity):
+    """https://en.wikipedia.org/wiki/Vapour-pressure_deficit"""
+    svc = calc_saturated_vapour_concentration_air(temp_air)
+    return svc * (1 - relative_humidity / 100)
+
 
 if __name__ == '__main__':
     
@@ -376,9 +384,7 @@ if __name__ == '__main__':
     latent_heat_flux = calc_latent_heat_flux(temp_air, temp_surface, relative_humidity, ppfd, lai, vapour_resistance)
      
      
-    svp = calc_saturated_vapour_pressure_air(temp_air)
-    svc = vapour_concentration_from_pressure(svp, temp_air)
-    print("VAPOUR PRESSURE DEFICIT ", svc * (1-(relative_humidity/100)) * 1000)
+    print("VAPOUR CONCENTRATION DEFICIT ", calc_vapour_concentration_deficit(temp_air, relative_humidity))
          
     print("SURFACE TEMPERATURE ",temp_surface)
     print("NET RADIATION: ",net_radiation)
