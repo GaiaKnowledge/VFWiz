@@ -24,7 +24,72 @@ https://appgeodb.nancy.inra.fr/biljou/pdf/Allen_FAO1998.pdf
 http://www.fao.org/3/X0490E/x0490e0k.htm
 
 
-PV = nRT => n/V = P/RT
+
+Hi Luuk,
+
+Thanks again for your help. I've implemented a model in Python but am struggling to get it to work - possibly because of confusion over the different units that are being used.
+
+It’s probably easiest if I demonstrate the issue with the Latent Heat calculation and rough data taken from the paper (this won’t be exact, because I’m taking data from the graph, but I hope it will show where the problem lies.
+
+If I take the data from table 1 (experiment 1) and take the data for a ppfd of 600, I have the following data from the paper:
+
+Air temperature (Ta): 21C
+LAI: 3.0
+Aerodynamic boundary layer resistance (R_a): 100 s m-1
+Stomatal resistance (R_s): 158 s m-1
+
+I also need the following constants, for which I’ve taken standard SI values:
+Heat capacity of air (Rc): 1.003 J  kg-1 C-1
+Latent heat of evaporation of water (Lambda):  2264705 J kg-1
+
+From figure 3 it looks like the transpiration rate for 600 ppfd is approximately: 0.051g m-2 s
+
+From the FAO page on Crop evapotranspiration (http://www.fao.org/3/X0490E/x0490e0i.htm#annex%201.%20units%20and%20symbols) it looks like you multiply by 2450 to go from g m-2 s to W m-2, so that makes the transpiration rate for 600 ppfd approximately: 125 W m-2 (this seems roughly correct to me).
+
+Equation 6 gives the latent heat exchange (and therefore the transpiration rate) as:
+La_E = LAI * Lambda * ((X_sts - X_sta) / (R_s + R_a))
+
+so rearranging gives me:
+X_sts - X_sta = (La_E * (R_s + R_a) ) / (LAI * Lambda)
+
+X_sts - X_sta = (125 * ( 158 + 100)) / (3.0 * 2264705) = 0.0047449 kg m-3 
+
+Equation 7 to calculate the vapour concentration at the surface is:
+X_sts = X_sta + (Rc / Lambda) * Epsilon * (Ts - Ta)
+
+If I rearrange to get Epsilon, I get:
+
+Epsilon = (X_sts -  X_sta) * Lambda / ((Ts - Ta) * Rc)
+
+If I assume that the temperature difference is of the order of a few degrees (say Ts = 23C) and Ts - Ta = 2 (again, it’s just to show an order of magnitude), then:
+
+Epsilon = (0.0047449 * 2264705) / (2 * 1.003)
+
+Epsilon = 5356.83
+
+You said that Epsilon can be calculated as:
+
+epsilon = delta / gamma
+Where delta = 0.04145 * exp(0.06088*T_s) (kPa/C)
+Gamma = 66.5  (Pascal/K) (gamma is a psychometric constant)
+
+For 23C, this gives me: 
+
+0.0025
+
+Even if I assume that this is for kPa and multiply by 1000, I only get:
+
+2.529
+
+So I’m out by several orders of magnitude.
+
+I’ve tried calculating Epsilon using the data on the FAO webpage, but this also gives me a similar value to the above.
+
+I’d be most grateful if you could help me to work out where I’m going wrong as the rest of my code seems to be working fine.
+
+Best wishes,
+
+Jens
 
 """
 import logging
@@ -35,12 +100,10 @@ from scipy.optimize import root_scalar
 # https://www.ohio.edu/mechanical/thermo/property_tables/air/air_cp_cv.html at 300K/26.85C
 HEAT_CAPACITY_OF_AIR =  1003 # J kg-1 C-1
 HEAT_CAPACITY_OF_AIR_GRAMS =  1.003 # J g-1 C-1
-HEAT_CAPACITY_OF_AIR_GRAMS =  1003 # J g-1 C-1
 
 # Need canonical reference: https://en.wikipedia.org/wiki/Latent_heat
 LATENT_HEAT_WATER = 2264705 # J Kg-1
 LATENT_HEAT_WATER_GRAMS = 2264.705 # J g-1
-LATENT_HEAT_WATER_GRAMS = 2264705 # J g-1
 
 # Valye from paper
 PSYCHOMETRIC_CONSTANT = 65.0 # Pa/K
@@ -77,12 +140,12 @@ def calc_temp_surface(*, # Force all keyword arguments
     Cultivation Area Coverage: {}
 """.format(temp_air, ppfd, relative_humidity, lai, vapour_resistance, reflection_coefficient, cultivation_area_coverage))
 
-    def calc_residual(temp_surface, net_radiation):
+    def calc_energy_balance(temp_surface, net_radiation):
         sensible_heat_exchange = calc_sensible_heat_exchange(temp_air, temp_surface, lai, vapour_resistance)
         latent_heat_flux = calc_latent_heat_flux(temp_air, temp_surface, relative_humidity, ppfd, lai, vapour_resistance)
-        residual = net_radiation - sensible_heat_exchange - latent_heat_flux
-        logger.debug("TEMP, SENSIBLE, LATENT, NET, residual: %s %s %s %s %s",temp_surface, sensible_heat_exchange, latent_heat_flux, net_radiation, residual)
-        return residual
+        energy_balance = net_radiation - sensible_heat_exchange - latent_heat_flux
+        logger.debug("TEMP, SENSIBLE, LATENT, NET, residual: %s %s %s %s %s",temp_surface, sensible_heat_exchange, latent_heat_flux, net_radiation, energy_balance)
+        return energy_balance
     
     net_radiation = calc_net_radiation(ppfd, reflection_coefficient, cultivation_area_coverage)
     
@@ -90,7 +153,7 @@ def calc_temp_surface(*, # Force all keyword arguments
     xa = temp_air - limit
     xb = temp_air + limit
     args = (net_radiation,)
-    result = root_scalar(calc_residual, bracket=[xa, xb], args=args)
+    result = root_scalar(calc_energy_balance, bracket=[xa, xb], args=args)
     
     assert result.converged
     temp_surface = result.root
@@ -184,56 +247,63 @@ def calc_sensible_heat_exchange(temp_air, temp_surface, lai, vapour_resistance):
     Ts: temperature at the transpiring surface
     Ta: temperature of surrounding air
     ra: aerodynamic resistance to heat
+    
+    results are in:
+    J g-1 * T * m-1 s
     """
-    return lai * HEAT_CAPACITY_OF_AIR_GRAMS * ((temp_surface - temp_air) / vapour_resistance)
+    #return lai * HEAT_CAPACITY_OF_AIR_GRAMS * ((temp_surface - temp_air) / vapour_resistance)
+    return lai * HEAT_CAPACITY_OF_AIR * ((temp_surface - temp_air) / vapour_resistance)
 
 
 def calc_latent_heat_flux(temp_air, temp_surface, relative_humidity, ppfd, lai, vapour_resistance):
     """
-    9. Submodel for stomatal resistance
-    rs = 60 * (1500 + PPFD) / (220  + PPFD)
-    PPFD: photosynthetic photon flux density (μmol/m2s)
     
     6. Latent Heat Flux λE - I think this is the evapotranspiration rate
     λE = LAI * λ * (χs - χa) / (rs + ra)
-    λ: latent heat of the evaporation of water
-    χs: vapour concentration at the transpiring surface
-    χa:  vapour concentration in surrounding air
-    rs: surface (or stomatal) resistance
-    ra: aerodynamic resistance to vapour transfer
+    LAI: Leaf Area Index
+    λ: latent heat of the evaporation of water - J g-1
+    χs: vapour concentration at the transpiring surface - g m-3
+    χa:  vapour concentration in surrounding air - g m-3
+    rs: surface (or stomatal) resistance - s m-1
+    ra: aerodynamic resistance to vapour transfer - s m-1
+    
+    results are in:
+    J g-1 * g m-3 / s m-1
+    J m-2 s-1
     """
-#     vapour_pressure_air = calc_vapour_pressure_air(temp_air, relative_humidity)
-#     logger.debug('vapour pressure air: {}'.format(vapour_pressure_air))
-#     vapour_pressure_surface = calc_vapour_pressure_surface(temp_air, temp_surface, vapour_pressure_air)
-#     logger.debug('vapour pressure surface: {}'.format(vapour_pressure_surface))
-    vapour_concentration_air = calc_vapour_concentration_air(temp_air, relative_humidity)
-    logger.debug('vapour concentration air: {}'.format(vapour_concentration_air))
-    vapour_concentration_surface = calc_vapour_concentration_surface(temp_air, temp_surface, vapour_concentration_air)
-    logger.debug('vapour concentration surface: {}'.format(vapour_concentration_surface))
-    
-#     vapour_concentration_air = vapour_concentration_from_pressure(vapour_pressure_air, temp_air)
-#     logger.debug('vapour concentration air: {}'.format(vapour_concentration_air))
-#     vapour_concentration_surface = vapour_concentration_from_pressure(vapour_pressure_surface, temp_surface)
-#     logger.debug('vapour concentration surface: {}'.format(vapour_concentration_surface))
-    
+    use_concentration = False
+    if use_concentration:
+        vapour_concentration_air = calc_vapour_concentration_air(temp_air, relative_humidity)
+        logger.debug('vapour concentration air: {}'.format(vapour_concentration_air))
+        vapour_concentration_surface = calc_vapour_concentration_surface(temp_air, temp_surface, vapour_concentration_air)
+        logger.debug('vapour concentration surface: {}'.format(vapour_concentration_surface))
+    else:
+        vapour_pressure_air = calc_vapour_pressure_air(temp_air, relative_humidity)
+        logger.debug('vapour pressure air: {}'.format(vapour_pressure_air))
+        vapour_pressure_surface = calc_vapour_pressure_surface(temp_air, temp_surface, vapour_pressure_air)
+        logger.debug('vapour pressure surface: {}'.format(vapour_pressure_surface))
+        
     stomatal_resistance = calc_stomatal_resistance(ppfd)
-#     return lai * LATENT_HEAT_WATER_GRAMS * ( (vapour_pressure_surface - vapour_pressure_air) / (stomatal_resistance + vapour_resistance) )
-    return lai * LATENT_HEAT_WATER_GRAMS * ( (vapour_concentration_surface - vapour_concentration_air) / (stomatal_resistance + vapour_resistance) )
+    
+    if use_concentration:
+        return lai * LATENT_HEAT_WATER * ( (vapour_concentration_surface - vapour_concentration_air) / (stomatal_resistance + vapour_resistance) )
+    else:
+        return lai * LATENT_HEAT_WATER * ( (vapour_pressure_surface - vapour_pressure_air) / (stomatal_resistance + vapour_resistance) )
 
 
-# def XXXcalc_vapour_pressure_air(temp_air, relative_humidity):
-#     """
-#     jmht added - seems to get different results from below
-#     From: http://www.fao.org/3/X0490E/x0490e0k.htm
-#     saturated_vapour_pressure = 0.6108 * math.exp((17.27 * temp_air) / (temp_air + 237.3))
-#     Luuk Gaamans personal communication:
-#         Vapour concentration in the air = Relative humidity * saturated vapour concentration at air temperature (g m-3)
-#         Additional information:
-#         https://www.engineeringtoolbox.com/water-vapor-saturation-pressure-air-d_689.html
-#         https://www.engineeringtoolbox.com/relative-humidity-air-d_687.html
-#     """
-#     saturated_vapour_pressure = calc_saturated_vapour_pressure_air(temp_air)
-#     return saturated_vapour_pressure * relative_humidity / 100
+def calc_vapour_pressure_air(temp_air, relative_humidity):
+    """
+    jmht added - seems to get different results from below
+    From: http://www.fao.org/3/X0490E/x0490e0k.htm
+    saturated_vapour_pressure = 0.6108 * math.exp((17.27 * temp_air) / (temp_air + 237.3))
+    Luuk Gaamans personal communication:
+        Vapour concentration in the air = Relative humidity * saturated vapour concentration at air temperature (g m-3)
+        Additional information:
+        https://www.engineeringtoolbox.com/water-vapor-saturation-pressure-air-d_689.html
+        https://www.engineeringtoolbox.com/relative-humidity-air-d_687.html
+    """
+    saturated_vapour_pressure = calc_saturated_vapour_pressure_air(temp_air)
+    return saturated_vapour_pressure * (relative_humidity / 100)
 
 def calc_vapour_concentration_air(temp_air, relative_humidity):
     """
@@ -243,7 +313,7 @@ def calc_vapour_concentration_air(temp_air, relative_humidity):
         https://www.engineeringtoolbox.com/water-vapor-saturation-pressure-air-d_689.html
         https://www.engineeringtoolbox.com/relative-humidity-air-d_687.html
     """
-    return calc_saturated_vapour_concentration_air(temp_air) * relative_humidity / 100
+    return calc_saturated_vapour_concentration_air(temp_air) * (relative_humidity / 100)
 
 
 def calc_saturated_vapour_concentration_air(temp_air):
@@ -268,21 +338,21 @@ def calc_saturated_vapour_pressure_air_FAO(temp_air):
     return 0.611 * math.exp((17.27 * temp_air) / (temp_air + 237.3))
 
 
-# def XXXcalc_vapour_pressure_surface(temp_air, temp_surface, vapour_pressure_air):
-#     """
-#     7. Relation of χs to χa
-#     χs = χa + (ρa * cp) / λ * ε * (Ts - Ta)
-#     λ: latent heat of the evaporation of water
-#     ρa: Density of air
-#     cp: Specific heat of air
-#     χs: vapour concentration at the transpiring surface
-#     χa:  vapour concentration in surrounding air
-#     ε: vapour concentration (slope of the saturation function curve)
-# 
-#     """
-#     epsilon = calc_epsilon(temp_air)
-#     return vapour_pressure_air + (HEAT_CAPACITY_OF_AIR_GRAMS / LATENT_HEAT_WATER_GRAMS) * \
-#            epsilon * (temp_surface - temp_air)
+def calc_vapour_pressure_surface(temp_air, temp_surface, vapour_pressure_air):
+    """
+    7. Relation of χs to χa
+    χs = χa + (ρa * cp) / λ * ε * (Ts - Ta)
+    λ: latent heat of the evaporation of water
+    ρa: Density of air
+    cp: Specific heat of air
+    χs: vapour concentration at the transpiring surface
+    χa:  vapour concentration in surrounding air
+    ε: vapour concentration (slope of the saturation function curve)
+ 
+    """
+    epsilon = calc_epsilon(temp_air) * 1000
+    return vapour_pressure_air + (HEAT_CAPACITY_OF_AIR / LATENT_HEAT_WATER) * \
+           epsilon * (temp_surface - temp_air)
 
 
 def calc_vapour_concentration_surface(temp_air, temp_surface, vapour_concentration_air):
@@ -298,7 +368,7 @@ def calc_vapour_concentration_surface(temp_air, temp_surface, vapour_concentrati
 
     """
     epsilon = calc_epsilon(temp_air)
-    return vapour_concentration_air + (HEAT_CAPACITY_OF_AIR_GRAMS / LATENT_HEAT_WATER_GRAMS) * \
+    return vapour_concentration_air + (HEAT_CAPACITY_OF_AIR / LATENT_HEAT_WATER) * \
            epsilon * (temp_surface - temp_air)
 
 
@@ -308,7 +378,7 @@ def calc_epsilon(temp_air):
     
     epsilon relates the vapour_pressure to concentration. Explanation from Luuk:
         The simplest way to calculate it is epsilon = delta / gamma
-        Where delta = 0.04145*exp(0.06088*T_s) (kPa/C)
+        Where delta = 0.04145 * exp(0.06088*T_s) (kPa/C)
         Gamma = 66.5  (Pascal/K) (gamma is a psychometric constant)
     """
     delta = 0.04145 * math.exp(0.06088 * temp_air)
@@ -317,9 +387,10 @@ def calc_epsilon(temp_air):
 def calc_epsilon_FAO(temp_air):
     """    
     From: http://www.fao.org/3/X0490E/x0490e0k.htm
-    Disagrees by order of magnitude with above - even with factor of 1000
+    Disagrees by order of magnitude with above
     """
-    return ((2504 * math.exp((17.27 * temp_air) / (temp_air + 237.2))) / math.pow((temp_air + 237.2), 2)) / 1000
+    x = temp_air + 237.2
+    return (2504 * math.exp((17.27 * temp_air) / x)) / math.pow(x, 2)
 
 
 def vapour_concentration_from_pressure(vapour_pressure, temperature):
@@ -330,7 +401,7 @@ def vapour_concentration_from_pressure(vapour_pressure, temperature):
     
     Multiply by molar mass to get concentration in g m-3
     """
-    return vapour_pressure / (IDEAL_GAS_CONSTANT * (temperature + ZERO_DEGREES_IN_KELVIN)) * (MOLAR_MASS_H2O_GRAMS)
+    return vapour_pressure / (IDEAL_GAS_CONSTANT * (temperature + ZERO_DEGREES_IN_KELVIN)) * MOLAR_MASS_H2O_GRAMS
 
 
 def calc_stomatal_resistance(ppfd):
@@ -343,24 +414,47 @@ def calc_vapour_concentration_deficit(temp_air, relative_humidity):
     return svc * (1 - relative_humidity / 100)
 
 
+def energydensity_to_evapotranspiration(energy_density):
+    """
+    
+    Data from: http://www.fao.org/3/X0490E/x0490e0i.htm#annex%201.%20units%20and%20symbols
+    
+    Calculation:
+    1 mm day-1 = 2.45 MJ m-2 day-1 # From FAO
+    
+    1mm over a 1 m-2 area = 1 * 1 * 1 10**6 = 1 * 10**6 m-3
+    1 * 10**6 m-3 = 1 * 10**3 g = 1000g
+    
+    1000g day-1 = 1000 / (24 * 60 * 60) = 0.01157 g s-1
+    
+    
+    2.45 MJ m-2 day-1 = 2.45 * 10**6 J m-2 day-1
+    
+    2.45 * 10**6 J m-2 day-1 = (2.45 * 10**6) / (24 * 60 * 60) = 28.356 W m-2
+    
+    so:
+    28.356 W m-2 = 0.01157 g s-1
+    
+    so:  
+    1 W m-2 = 0.01157 / 28.356 = 0.000408 g s-1
+    
+    
+    Full calculation:
+    # Convert both results to J and per second
+    (2.45 * 10**6) / (24 * 60 * 60)  = 1000 / (24 * 60 * 60)
+    
+    everything cancels
+    1 W m-2 = 1 / (2.45 * 10**3) = 1 / 2450 = 0.00040816326530612246
+
+    """
+    return energy_density / 2450
+
+
 if __name__ == '__main__':
     
-#     print(calc_epsilon(20))
-#     print(calc_epsilon(21))
-#     print(calc_epsilon(22))
-#     print(calc_epsilon(23))
-#     print(calc_epsilon(24))
-#     epsilon = calc_epsilon(24)
-#     # 0.0027489543738581732
-#     y = HEAT_CAPACITY_OF_AIR_GRAMS / LATENT_HEAT_WATER_GRAMS
-#     print(y)
-#     # 0.0005332757688087411
-#     x = y * epsilon
-#     print(x)
-#     # 1.465950757139369e-06
-    
     logging.basicConfig(level=logging.DEBUG)
-      
+     
+     
     # variables
     temp_air = 21 # degrees celsius
     ppfd = 600 #  umol m-2
@@ -369,7 +463,7 @@ if __name__ == '__main__':
     vapour_resistance = 100 #  s m-1
     reflection_coefficient = 0.05
     cultivation_area_coverage = 1.0
-        
+          
     temp_surface = calc_temp_surface(temp_air=temp_air,
                                      ppfd=ppfd,
                                      relative_humidity=relative_humidity,
@@ -378,19 +472,18 @@ if __name__ == '__main__':
                                      reflection_coefficient=reflection_coefficient,
                                      cultivation_area_coverage=cultivation_area_coverage)
     logger.info("Calculated surface temperature of: {}".format(temp_surface))
-        
+          
     net_radiation = calc_net_radiation(ppfd, reflection_coefficient, cultivation_area_coverage)
     sensible_heat_exchange = calc_sensible_heat_exchange(temp_air, temp_surface, lai, vapour_resistance)
     latent_heat_flux = calc_latent_heat_flux(temp_air, temp_surface, relative_humidity, ppfd, lai, vapour_resistance)
-     
-     
+       
+       
     print("VAPOUR CONCENTRATION DEFICIT ", calc_vapour_concentration_deficit(temp_air, relative_humidity))
-         
     print("SURFACE TEMPERATURE ",temp_surface)
     print("NET RADIATION: ",net_radiation)
     print("SENSIBLE HEAT EXCHANGE ", sensible_heat_exchange)
     print("LATENT HEAT FLUX ", latent_heat_flux)
-    print("STOMATAL RESISTANCE", calc_stomatal_resistance(ppfd))
+    print("EVAPOTRANSPIRATION ",energydensity_to_evapotranspiration(latent_heat_flux))
 
 
 
