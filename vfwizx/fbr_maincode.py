@@ -33,10 +33,10 @@ def get_scenario(input_file):
     scenario.crop_price = inputs['crop_price_per_kilo']
     scenario.farm_staff = inputs['number_of_farm_staff']
     scenario.salaries = inputs['annual_salaries_of_employees']
-    scenario.wages = inputs['minimum_wage']
+    scenario.standard_wage = inputs['standard_wage']
     scenario.insurance = inputs['insurance_premium']
     scenario.coverage = inputs['insurance_coverage']
-    scenario.days = inputs['days_of_simulation']
+    scenario.days = inputs['days_for_simulation']
     return scenario
 
 # ============================================== SYSTEM AND EXPECTED YIELDS #==================================#
@@ -138,7 +138,7 @@ def calc_PAR_factor(ppfd_lights, crop_ppfd_reqs):
     return PARf
 
 def calc_CO2_factor(co2_enrichment):
-    if co2_enrichment == 'yes':
+    if co2_enrichment:
         CO2f = 1
     else:
         CO2f = 0.9
@@ -149,12 +149,10 @@ def calc_failure_rate():
    return fr
 
 def calc_standard_yield(crop):  # Standard yield per annum
-   # standard yield
-    if isinstance(ys, int):  # What does this represent?
-       ys = ys
+    if crop == 'lettuce':
+        return 3
     else:
-       ys = get_gross_yield(crop)
-    return ys
+        raise RuntimeError("Unknown crop: {}".format(crop))
 
 def calc_plant_area(grow_area):
     pa = grow_area
@@ -184,7 +182,7 @@ def calc_sales(ya, crop_price, sale_cycle):
 
 #============================================== COST OF GOODS SOLD ==================================================#
 
-# ------------------------------------------------------ COGS: SEEDS COSTS -----------------------------------------------------------------#
+# ---------------------------------------------- COGS: SEEDS COSTS -----------------------------------------------------------------#
 def calc_seeds_cost(crop, ya, harvest_weight):
     if crop == 'lettuce':
         cost_per_seed = 0.10
@@ -206,15 +204,15 @@ def calc_media_cost(ya):
 
 # ------------------------------------------------------ COGS: CO2 ENRICHMENT -----------------------------------------------------------------#
 def calc_CO2_cost(co2_enrichment):
-    if co2_enrichment == 'yes':
+    if co2_enrichment:
         CO2_cost = ya*0.1
     else:
         CO2_cost = 0
     return CO2_cost
 
 # ------------------------------------------------------ COGS: LABOUR COSTS -----------------------------------------------------------------#
-def calc_labour_cost(farm_staff, wages):
-    labour_cost = farm_staff*wages*35
+def calc_labour_cost(farm_staff, standard_wage):
+    labour_cost = farm_staff * standard_wage * 35
     return labour_cost# Direct farm labour cost = Number of staff working full-time x wages x 30 hours
     # Generalisation if statement on farm labour required if unknown
 
@@ -232,13 +230,17 @@ def calc_cogs(seeds_cost, nutrients_cost, media_cost, CO2_cost, labour_cost, pac
     cogs_daily = cogs_annual / 365
     return cogs_annual, cogs_quarterly, cogs_monthly, cogs_weekly, cogs_daily
 
-def calc_cogs_time_series(days, cogs_quarterly):  # can adjust for days/weekly/monthly/annually in the future - ASSUMED: CONSUMABLES PURCHASED QUARTERLY
+def calc_cogs_time_series(days, cogs_quarterly):
+    """
+    # can adjust for days/weekly/monthly/annually in the future - ASSUMED: CONSUMABLES PURCHASED QUARTERLY
+    """
+    cogs_time_series = []
     for i in range(days):
         if i % 365/4 == 0:
-            cogs_time_series += cogs_quarterly
-            return cogs_time_series
+            cogs_time_series.append(cogs_quarterly)
         else:
-            raise RuntimeError("Unknown days {}".format(days))
+            cogs_time_series.append(0.0)
+    return cogs_time_series
 
 #============================================== OPERATIONAL EXPENDITURE ==================================================#
 #--------------------------------------------------- OPEX: SALARIES -----------------------------------------------------------------#

@@ -21,7 +21,7 @@ class Scenario(object):
         self.crop_price = None  # Crop price per kilo
         self.farm_staff = None  # The number of staff working on the farm
         self.salaries = None  # The annual salaries of permanent employees (Management and founders)
-        self.wages = None  # The £/h wages for farm hands.
+        self.standard_wage = None  # The £/h wages for farm hands.
         self.insurance = None  # The cost of insurance premium
         self.coverage = None  # The level of coverage from insurance ( high, med or low)
         self.days = None  # The number of days you would like to run your simulation

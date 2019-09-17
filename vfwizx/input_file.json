@@ -9,10 +9,10 @@
    "grow_area" : 251,
    "farm_volume" : 6555,
    "building_type" : "basement",
-   "rental_costs" : 0
+   "rental_costs" : 0,
    "surface_area" : 406,
    "grow_system" : "ziprack_8",
-   "co2_enrichment" : "yes",
+   "co2_enrichment" : true,
    "energy_price" : 0.10,
    "ratio_of_renewable_energy_created_to_sourced" : 0,
    "water_price" : 1.78,
@@ -20,7 +20,7 @@
    "crop_price_per_kilo" : 15,
    "number_of_farm_staff" : 2,
    "annual_salaries_of_employees" : 50000,
-   "minimum_wage"  : 8.21,
+   "standard_wage"  : 8.21,
    "insurance_premium" : 4000,
    "insurance_coverage" : "high",
    "days_for_simulation" : 365

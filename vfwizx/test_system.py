@@ -14,7 +14,7 @@ from fbr_maincode import calc_no_of_lights
 from fbr_maincode import get_temp_crop_reqs
 
 
-def test_no_of_racks():
+def test_no_of_racks_ziprack8():
     grow_system = 'ziprack_8'
     grow_area = 251
     no_of_racks = 54
@@ -39,9 +39,11 @@ def test_plant_capacity():
     crop = 'lettuce'
     grow_system = 'ziprack_8'
     no_of_racks = 54
-    plant_capacity_yield = 5346
-    plant_capacity_number =
-    assert abs(calc_plant_capacity(crop, grow_system, no_of_racks) - ref_plant_capacity) < 0.1
+
+    plant_capacity_yield, plant_capacity_number = calc_plant_capacity(crop, grow_system, no_of_racks)
+    ref_plant_capacity_yield = 5346
+    ref_plant_capacity_number = xxxx
+    assert abs(plant_capacity_yield - ref_plant_capacity_yield) < 0.1
 
 
 def test_get_spec():
