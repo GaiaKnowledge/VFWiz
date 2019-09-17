@@ -7,6 +7,8 @@ from random import gauss
 from vf_inputs import Scenario
 
 #============================================== INPUT SCENARIO ==================================================#
+
+
 def get_scenario(input_file):
     with open(input_file) as f:
         inputs = json.load(f)
@@ -26,8 +28,7 @@ def get_scenario(input_file):
     scenario.system = inputs['grow_system']
     scenario.CO2 = inputs['co2_enrichment']
     scenario.energy = inputs['energy_price']
-    scenario.renewable = inputs['ratio_of_renewable_energy_created_to_sourced']  # renewable energy converted from in-house supply
-    scenario.water = inputs['water_price'] # Water price in Currency/m3
+    scenario.renewable = inputs['ratio_of_renewable_energy_created_to_sourced']
     scenario.toutdoors = inputs['average_outdoor_temperature']
     scenario.crop_price = inputs['crop_price_per_kilo']
     scenario.farm_staff = inputs['number_of_farm_staff']
@@ -38,7 +39,9 @@ def get_scenario(input_file):
     scenario.days = inputs['days_of_simulation']
     return scenario
 
-#============================================== SYSTEM AND EXPECTED YIELDS ==================================================#
+# ============================================== SYSTEM AND EXPECTED YIELDS #==================================#
+
+
 def calc_no_of_racks(grow_system, grow_area):
    if grow_system == 'ziprack_8':
       no_of_racks = math.floor(grow_area/4.62963)  # 54 Zipracks per 250 sq-m (including aisles, work bench and plumbing kit)
@@ -147,10 +150,10 @@ def calc_failure_rate():
 
 def calc_standard_yield(crop):  # Standard yield per annum
    # standard yield
-   if isinstance(ys, int):  # What does this represent?
-      ys = ys
-   else:
-      ys = get_gross_yield(crop)
+    if isinstance(ys, int):  # What does this represent?
+       ys = ys
+    else:
+       ys = get_gross_yield(crop)
     return ys
 
 def calc_plant_area(grow_area):
@@ -295,7 +298,7 @@ def calc_hvac_energy(surface_area, building_type, Tin, Tout):
    if building_type == 'basement':
       U = 0.5
    else:
-      U=   # generic heat transfer coefficient
+      U = 24 # generic heat transfer coefficient
    Q = U*surface_area*(Tin-Tout)
    hvac_kwh = Q*0.00666667*24  # Conversion factor of kJ/h to kWh x 24 hours
 
@@ -371,19 +374,19 @@ def calc_renewable_energy_reduction(renewable, energy_cost_per_day):   # Distrib
 def calc_opex_time_series(days, monthly_salary_payments, energy_cost_per_month, water_cost_per_month,
               rent, maintenance_cost_per_month, distribution_cost_per_month, renewable_energy_reduction_per_month):  # can adjust for days/weekly/monthly/annually in the future
    for i in range(days):
-      if i % 30 == 0:
-       opex_time_series += monthly_salary_payments  # Fixed costs
-       opex_time_series += energy_cost_per_month  # Lights and HVAC energy costs
-       opex_time_series += water_cost_per_month
-       opex_time_series += misc_energy_cost_per_month
-       opex_time_series += maintenance_cost_per_month
-       opex_time_series += rent
-       opex_time_series += distribution_cost_per_month
-       opex_time_series -= renewable_energy_reduction_per_month
-      elif i % 365 == 0:
-        opex_time_series += 0 # Standing charge
-        opex_time_series += insurance_premium # Insurance premium annual charge
-    return opex_time_series
+       if i % 30 == 0:
+           opex_time_series += monthly_salary_payments  # Fixed costs
+           opex_time_series += energy_cost_per_month  # Lights and HVAC energy costs
+           opex_time_series += water_cost_per_month
+           opex_time_series += misc_energy_cost_per_month
+           opex_time_series += maintenance_cost_per_month
+           opex_time_series += rent
+           opex_time_series += distribution_cost_per_month
+           opex_time_series -= renewable_energy_reduction_per_month
+       elif i % 365 == 0:
+           opex_time_series += 0 # Standing charge
+           opex_time_series += insurance_premium # Insurance premium annual charge
+   return opex_time_series
 
 # Operations = Bill Growth Lights + Bill Environmental Control + Bill Misc Energy + Water Bill + Salary Cost + Maintenance Cost + Distribution cost - Reduction from Renewable Energy
 
@@ -393,7 +396,7 @@ def calc_revenue_time_series(sales, sale_cycle):  # Currently people pay per har
    for i in range(days):
       if i % sale_cycle == 0:
         revenue_time_series += sales
-    return revenue_time_series
+   return revenue_time_series
 
 #============================================== PROFIT AND MARGINS ==================================================#
 #---------------------------------------------- PROFIT -----------------------------------------------------------------#
@@ -423,13 +426,13 @@ Notes
     n = number of payments
 """
 
-def calc_loan_balance(capex, interest, days):
+def calc_loan_balance(capex, interest, days, repayment):
     loan_balance: int(capex)
     monthly_interest = interest/12
     loan_balance_array = []
     for i in range(days):
         if i % 30 == 0:
-            loan_balance = loan_balance * (1 + monthly_interest)**(i/30) - P * ((1+monthly_interest)**(i/30) - 1) / monthly_interest)
+            loan_balance = loan_balance * (1 + monthly_interest)**(i/30) - repayment * (((1+monthly_interest)**(i/30) - 1) / monthly_interest)
             loan_balance_array.append(loan_balance)
         else:
             break  # I THINK? AH LOSING MA MINDDDD

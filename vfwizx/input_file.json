@@ -6,7 +6,7 @@
    "loan_interest" : 0.05,
    "lights" : "intraspectra_spectrablade_8",
    "crop" : "lettuce",
-   "grow_area" : 250,
+   "grow_area" : 251,
    "farm_volume" : 6555,
    "building_type" : "basement",
    "rental_costs" : 0
