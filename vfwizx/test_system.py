@@ -9,7 +9,6 @@ from fbr_maincode import calc_no_of_racks
 from fbr_maincode import calc_harvest_weight
 from fbr_maincode import get_gross_yield
 from fbr_maincode import calc_plant_capacity
-from fbr_maincode import get_spec
 from fbr_maincode import calc_no_of_lights
 from fbr_maincode import get_temp_crop_reqs
 
@@ -17,9 +16,8 @@ from fbr_maincode import get_temp_crop_reqs
 def test_no_of_racks_ziprack8():
     grow_system = 'ziprack_8'
     grow_area = 251
-    no_of_racks = 54
-    assert abs(calc_no_of_racks(grow_system, grow_area) - no_of_racks) < 0.49
-
+    ref_no_of_racks = 54
+    assert abs(calc_no_of_racks(grow_system, grow_area) - ref_no_of_racks) == 0
 
 def test_harvest_weight():
     crop = 'lettuce'
@@ -46,31 +44,17 @@ def test_plant_capacity():
     assert abs(plant_capacity_yield - ref_plant_capacity_yield) < 0.1
 
 
-def test_get_spec():
-    """Data from experiment 3 from table 1 of paper"""
-    temp_air = 21
-    relative_humidity = 76
-    vapour_concentration_deficit = 4.4
-    assert abs(calc_vapour_concentration_deficit(temp_air, relative_humidity) - vapour_concentration_deficit) < 0.1
-
-
 def test_no_of_lights():
     """Data from experiment 1(A) from table 1 of paper """
-    ppfd = 140
-    ref_stomatal_resistance = 289
-    assert abs(calc_stomatal_resistance(ppfd) - ref_stomatal_resistance) < 1
-
-
-def test_stomatal_resistance_null():
-    ppfd = 0
-    ref_stomatal_resistance = 450
-    assert abs(calc_stomatal_resistance(ppfd) - ref_stomatal_resistance) < 1
+    grow_system = 'ziprack_8'
+    no_of_racks = 54
+    ref_no_of_lights = 1296
+    assert abs(calc_no_of_lights(grow_system, no_of_racks) - ref_no_of_lights) == 0
 
 
 def test_temp_crop_reqs():
-    """Data from set A from table 2 of paper"""
-    ppfd = 600
-    reflection_coefficient = 0.05
-    cultivation_area_coverage = 0.95
-    net_radiation = calc_net_radiation(ppfd, reflection_coefficient, cultivation_area_coverage)
-    assert abs(net_radiation - 108.3) < 0.1
+    crop = 'lettuce'
+    ref_temp_crop_reqs = 23.9  # Degrees celsius
+    assert abs(get_temp_crop_reqs(crop) - ref_temp_crop_reqs) == 0
+
+test_no_of_racks_ziprack8()

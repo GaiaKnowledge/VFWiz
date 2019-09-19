@@ -14,109 +14,30 @@ from fbr_maincode import get_temp_crop_reqs
 from fbr_maincode import calc_temperature_factor
 from fbr_maincode import calc_adjusted_yield
 
-def test_saturated_vapour_pressure_air():
-    temp_air = 25.0
-    saturated_vapour_pressure = 3158
-    assert abs(calc_saturated_vapour_pressure_air(temp_air) - saturated_vapour_pressure) < 1
+def test_adjusted_yield():
+    ys = 78.5
+    tm = 4.4861
+    pa = 235
+    parf = 1
+    co2f = 1
+    tf = 0.85
+    fr = 0.05
+    ref_adjusted_yield = 66825  # kg per year
+    assert abs(calc_adjusted_yield(ys, pa, parf, co2f, tf, fr) - ref_adjusted_yield) < 1
 
-
-def test_saturated_vapour_pressure_air_FAO():
-    temp_air = 25.0
-    saturated_vapour_pressure = 3.1688
-    assert abs(calc_saturated_vapour_pressure_air_FAO(temp_air) - saturated_vapour_pressure) < 0.001
-
-
-def test_saturated_vapour_concentration_air():
-    """Values taken from: https://www.engineeringtoolbox.com/relative-humidity-air-d_687.html"""
-    temp_air = 20.0
-    ref_concentration = 17.2  # they use 17.8 - difference due to their use of 273 rather then 273.15 for zero Kelvin
-    assert abs(calc_saturated_vapour_concentration_air(temp_air) - ref_concentration) < 0.1
-
-
-def test_calc_vapour_concentration_air():
-    """Values taken from: https://www.engineeringtoolbox.com/relative-humidity-air-d_687.html"""
-    temp_air = 20.0
-    relative_humidity = 57.8
-    ref_concentration = 10
-    assert abs(calc_vapour_concentration_air(temp_air, relative_humidity) - ref_concentration) < 0.1
-
-
-def test_vapour_concentration_deficit():
-    """Data from experiment 3 from table 1 of paper"""
-    temp_air = 21
-    relative_humidity = 76
-    vapour_concentration_deficit = 4.4
-    assert abs(calc_vapour_concentration_deficit(temp_air, relative_humidity) - vapour_concentration_deficit) < 0.1
-
-
-def test_stomatal_resistance():
-    """Data from experiment 1(A) from table 1 of paper """
-    ppfd = 140
-    ref_stomatal_resistance = 289
-    assert abs(calc_stomatal_resistance(ppfd) - ref_stomatal_resistance) < 1
-
-
-def test_stomatal_resistance_null():
-    ppfd = 0
-    ref_stomatal_resistance = 450
-    assert abs(calc_stomatal_resistance(ppfd) - ref_stomatal_resistance) < 1
-
-
-def test_net_radiation():
-    """Data from set A from table 2 of paper"""
-    ppfd = 600
-    reflection_coefficient = 0.05
-    cultivation_area_coverage = 0.95
-    net_radiation = calc_net_radiation(ppfd, reflection_coefficient, cultivation_area_coverage)
-    assert abs(net_radiation - 108.3) < 0.1
-
-
-def test_sensible_heat_exchange():
-    # NEEDS CHECKING
-    temp_air = 21.0
-    temp_surface = 23.0
-    lai = 3.0
-    vapour_resistance = 100
-    ref_value = 0.06
-    assert (abs(calc_sensible_heat_exchange(temp_air, temp_surface, lai, vapour_resistance) - ref_value) < 0.01)
-
-
-def test_latent_heat_flux():
-    # NEEDS CHECKING
-    pass
-
-
-if __name__ == '__main__':
-    import sys
-    import pytest
-
-    pytest.main([__file__] + sys.argv[1:])
-    # pytest.main([__file__] + sys.argv[1:])
-    import logging
-
-    logging.basicConfig(level=logging.DEBUG)
-
-    # def test_calc_vapour_concentration_surface():
-    temp_air = 21.0
-    temp_surface = 23.0
-    relative_humidity = 73
-    vapour_concentration_air = calc_vapour_concentration_air(temp_air, relative_humidity)
-    print(vapour_concentration_air)
-    vp_surface = calc_vapour_concentration_surface(temp_air, temp_surface, vapour_concentration_air)
-    print(vp_surface)
-
-#     temp_air = 21.0
-#     temp_surface = 23.0
-#     lai = 3.0
-#     vapour_resistance = 100
-#     relative_humidity = 73
-#     ppfd = 600
-#     ref_value =  42.85
-#     print(calc_latent_heat_flux(temp_air, temp_surface, relative_humidity, ppfd, lai, vapour_resistance))
-# assert(abs(calc_latent_heat_flux(temp_air, temp_surface, relative_humidity, ppfd, lai, vapour_resistance) - ref_value) < 0.01)
-
-#     temp_air = 21.0
-#     temp_surface = 23.0
-#     lai = 3.0
-#     vapour_resistance = 100
-#     print(calc_sensible_heat_exchange(temp_air, temp_surface, lai, vapour_resistance))
+    def calc_adjusted_yield(ys, pa, PARf, co2f, tf, fr):
+        """
+            Adjusted Plant Yield Equation
+            Notes
+            -----
+                Ya = Ys x PA x PARf x co2f x Tf x (1 - Fr)
+                Adjusted Plant Yield = Standard Yield x Plant Area x PAR factor
+                PARf = ratio of actual PAR delivered to plant canopy compared to theoretical plant requirements. In artificial lighting
+                VF the value was 1 as controlled at optimal level. Sun-fed plant level from EcoTect simulation.) x
+                co2f = Increment by co2 enrichment
+                Tf = Temperature factor (reflects reduction of yield caused by overheating or freezing of the growing area
+                if indoor temperature is uncontrolled by hvac or other systems, value can be set for 0.9 for preliminary estimation)
+                Fr = Failure rate, by default set at 5%
+        """
+        ya = ys * pa * PARf * co2f * tf * (1 - fr)
+        return ya

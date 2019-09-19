@@ -13,7 +13,7 @@ class Scenario(object):
         self.volume = None  # The volume of the farm
         self.building = None  # The type of building for the farm facility
         self.system = None  # The type of vertical farming cultivation system
-        self.CO2 = None  # Does the farm have CO2 enrichment?
+        self.co2 = None  # Does the farm have CO2 enrichment?
         self.energy = None  # What is the energy pricing for your local region?
         self.renewable = None  # What percentage of your energy supply is produced in-house from a renewable supply?
         self.water = None  # What is the water pricing for your local area?
